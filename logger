@@ -1222,7 +1222,7 @@ sub command_for_me ($$$$$) {
 	return;
     }
     # Log who told me to quit
-    log_admin_event($self, $event, time, "$::Nick told to depart");
+    log_admin_event($self, $event, time, "$::Nick told to depart $channel_name");
     $self->part($channel_name);
     Channel_close_logs($channel);
     $channel->{Listening} = 0;
