@@ -995,6 +995,7 @@ sub on_kick {
   log_admin_event($self, $event, time, $msg);
   my $channel = Channel_by_name($channel_name);
   if ($channel) {
+    Channel_close_logs($channel);
     $channel->{Listening} = 0;
     for (my $index=0; $index <= $#::Channels; $index++) {
 	if ($::Channels[$index] == $channel) {
@@ -1194,6 +1195,7 @@ sub command_for_me ($$$$$) {
     # Log who told me to quit
     log_admin_event($self, $event, time, "$::Nick told to depart");
     $self->part($channel_name);
+    Channel_close_logs($channel);
     $channel->{Listening} = 0;
     for (my $index=0; $index <= $#::Channels; $index++) {
 	if ($::Channels[$index] == $channel) {
