@@ -36,6 +36,7 @@ use File::Path;
 use File::Basename;
 use Sys::Hostname;
 use Getopt::Long;
+use IO::Handle;
 
 # From CPAN
 use URI;
@@ -57,6 +58,7 @@ $::Max_Results=5;
 $::Max_Max_Results=20;
 
 $::LogName=undef;
+$::LogActionMsgs=1;
 
 # ugly system dependencies
 # MSWin does not permit ":" in file path components
@@ -105,6 +107,13 @@ $::Channel_Last_ID='';
 # True if logging
 $::Channel_Listening=0;
 
+# Text log
+$::Channel_TEXTLOG=undef;
+
+# RDF log
+$::Channel_RDFLOG=undef;
+
+$::rdf_suffix="    </rdf:Seq>\n  </foaf:chatEventList>\n</foaf:ChatChannel>\n</rdf:RDF>\n";
 $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 
 ######################################################################
@@ -134,9 +143,11 @@ package main;
 
 sub main {
 
-  die "Usage: $::program [-nick <nick>] [-log <logfile>] password channel-URI channel-title log-dir log-URI\n  where channel-URI is like irc://host[:port]/channel\n"
-    unless GetOptions ('nick=s'	=> \$::Nick,
-		       'log=s'	=> \$::LogName) && @ARGV==5;
+  die "Usage: $::program [option...] password channel-URI channel-title log-dir log-URI\n  where option is one or more of:\n   -noaction		don't log /me messages\n   -log <logfile>	(\".txt\" and \".rdf\" will be appended)\n   -nick <nick>\n  and channel-URI is like irc://host[:port]/channel\n"
+    unless GetOptions ('action!' => \$::LogActionMsgs,
+		       'nick=s'	 => \$::Nick,
+		       'log=s'	 => \$::LogName,
+		      ) && @ARGV==5;
 
   my($password,$uri_string,$channel_title, $log_root, $log_uri_string)=@ARGV;
 
@@ -177,24 +188,16 @@ sub main {
 
 exit 0;
 
-
-######################################################################
-# Logging
-
-sub log_event ($$$;$) {
-  my($self, $event, $t, $msg)=@_;
-  my $nick=$event->nick;
-
-  return if !$::Channel_Listening;
+sub open_logs ($) {
+  my ($self)=@_;
 
   my $uri=$::Channel_URI;
-
   my $channel=$uri->channel;
 
   my $log_file=undef;
   my $rdf_log_file=undef;
 
-  my @tm = gmtime($t);
+  my @tm = gmtime;
   $tm[5]+= 1900; $tm[4]++;
   my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
   my $time = sprintf("%02d:%02d:%02d", $tm[2], $tm[1], $tm[0]);
@@ -217,25 +220,21 @@ sub log_event ($$$;$) {
       $rdf_log_file = "$log_dir/$date.rdf";
   } 
 
-  my $rdf_suffix="    </rdf:Seq>\n  </foaf:chatEventList>\n</foaf:ChatChannel>\n</rdf:RDF>\n";
-
   # Failed!
-  if (!open(LOG, ">>$log_file")) {
+  if (!open($::Channel_TEXTLOG, ">>$log_file")) {
     $self->privmsg("#$channel", "failed to append to log file, quitting - $!");
     exit(0);
   }
-  my $text_msg=$nick ? qq{<$nick> $msg} : $msg;
-  print LOG "$time $text_msg\n";
-  close(LOG);
 
+  $::Channel_TEXTLOG->autoflush(1);
 
   if(!-r $rdf_log_file) {
-    if (!open(RLOG, ">$rdf_log_file")) {
+    if (!open($::Channel_RDFLOG, ">$rdf_log_file")) {
       $self->privmsg("#$channel", "failed to append to log file, quitting - $!");
       exit(0);
     }
 
-    print RLOG <<"EOT";
+    print $::Channel_RDFLOG <<"EOT";
 <?xml version="1.0" encoding="UTF-8"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:dc="http://purl.org/dc/elements/1.1/"
@@ -246,24 +245,46 @@ sub log_event ($$$;$) {
     <rdf:Seq>
 EOT
   } else {
-    if (!open(RLOG, "+<$rdf_log_file")) {
+    if (!open($::Channel_RDFLOG, "+<$rdf_log_file")) {
       $self->privmsg("#$channel", "failed to append to log file, quitting - $!");
       exit(0);
     }
 
     # figure out whether stdio expands NEWLINE to CRLF
     if (!defined $::rdf_suffix_length) {
-	seek(RLOG, 0, 2);	# find the end
-	my $curlen = tell(RLOG);
-	print RLOG $rdf_suffix;
-	$::rdf_suffix_length = tell(RLOG) - $curlen;
-	truncate (RLOG, $curlen);
+	seek($::Channel_RDFLOG, 0, 2);	# find the end
+	my $curlen = tell($::Channel_RDFLOG);
+	print $::Channel_RDFLOG $::rdf_suffix;
+	$::rdf_suffix_length = tell($::Channel_RDFLOG) - $curlen;
+	truncate ($::Channel_RDFLOG, $curlen);
     }
-
-    # seek back
-    # @@ note that this assumes the existing data was NL-expanded identically
-    seek(RLOG, -$::rdf_suffix_length, 2) # 2= SEEK_END
   }
+
+  $::Channel_RDFLOG->autoflush(1);
+}
+
+
+######################################################################
+# Logging
+
+sub log_event ($$$;$) {
+  my($self, $event, $t, $msg)=@_;
+  my $nick=$event->nick;
+
+  return if !$::Channel_Listening;
+
+  my @tm = gmtime($t);
+  $tm[5]+= 1900; $tm[4]++;
+  my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
+  my $time = sprintf("%02d:%02d:%02d", $tm[2], $tm[1], $tm[0]);
+  my $date_time="$date $time";
+
+  my $text_msg=$nick ? qq{<$nick> $msg} : $msg;
+  print $::Channel_TEXTLOG "$time $text_msg\n";
+
+  # seek back
+  # @@ note that this assumes the existing data was NL-expanded identically
+  seek($::Channel_RDFLOG, -$::rdf_suffix_length, 2); # 2= SEEK_END
 
   # Make a legal XML id from the time
   my $ID="T$time"; $ID =~ s/:/-/g;
@@ -284,19 +305,16 @@ EOT
   }
   $::Channel_Last_ID=$ID;
 
-
-  print RLOG <<"EOT";
+  print $::Channel_RDFLOG <<"EOT";
       <rdf:li>
        <foaf:chatEvent rdf:ID="$ID">
         <dc:date>${date}T${time}Z</dc:date>
 EOT
-  print RLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
-  print RLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
-  print RLOG qq{       </foaf:chatEvent>\n};
-  print RLOG qq{      </rdf:li>\n};
-  print RLOG $rdf_suffix;
-
-  close(RLOG);
+  print $::Channel_RDFLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
+  print $::Channel_RDFLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
+  print $::Channel_RDFLOG qq{       </foaf:chatEvent>\n};
+  print $::Channel_RDFLOG qq{      </rdf:li>\n};
+  print $::Channel_RDFLOG $::rdf_suffix;
 }
 
 
@@ -445,7 +463,7 @@ sub on_caction {
   my $arg = join(' ', $event->args);
 
   # Private stuff
-  return if $arg =~ /^\[off\]/i;
+  return if (! $::LogActionMsgs) || $arg =~ /^\[off\]/i;
 
   log_event($self, $event, time, "* $nick $arg");
 }
@@ -794,6 +812,8 @@ sub join_channel($$) {
 
   die "$::program: Cannot create connection to $uri\n" 
     unless $conn;
+
+  open_logs($conn);
 
   # Install handlers
   # On 'end of MOTD' event, join ilrt channel
