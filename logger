@@ -52,6 +52,11 @@ $ENV{PATH}='/bin:/usr/bin:/usr/local/bin';
 my $AdminChannel;		# channel for administrative messages
 $::LogInitial = 1;		# log the initial channel
 
+my $ReaperThreshold = 0;	# seconds since last 'interesting' message
+				#   after which bot resigns from channel
+				# 0 disables auto-parting
+my $ReaperScheduled = 0;	# reap idle channels semaphore
+
 # Global constants
 $::program=basename $0;
 
@@ -184,22 +189,24 @@ sub main {
   my $usage=<<"EOT";
 Usage: $::program [option...] password channel-URI
   where option is one or more of:
-   -admin <dir>	    Directory for administrative logs
+   -admin <dir>     Directory for administrative logs
    -cvs             commit logs to CVS
-   -html	    write an XHTML log
-   -notext	    Do not write a text log
+   -html            write an XHTML log
+   -idleparttime <s> part a channel if it has been quite for more than
+                    <s> seconds.  If s==0 (the default), do not part.
+   -notext          Do not write a text log
    -noinitiallog    Do not log the initial channel (specified in arg1)
    -log <pattern>   Name pattern for log files; uses strftime() substitutions
                     plus the string '<channel>'
                     default is '<channel>/%Y-%m-%d'
                     (\".txt\", \".html\", and \".rdf\" will be appended)
-   -lroot <dir>	    Root directory for logs; '/' is not automatically added
+   -lroot <dir>     Root directory for logs; '/' is not automatically added
                     '<server>' will be replaced with host:port
    -nick <nick>     set the nick
-   -noaction	    Do not log /me messages
+   -noaction        Do not log /me messages
    -noofftopic      Do not ignore lines starting with [off]
    -userhosts       Record user\@host in /join messages
-   -uroot <URI>	    URI prefix for logs; '/' is not automatically added
+   -uroot <URI>     URI prefix for logs; '/' is not automatically added
                     '<server>' will be replaced with host:port
 
   and channel-URI is like irc://host[:port]/channel
@@ -214,6 +221,7 @@ EOT
 			'admin=s'   => \$::AdminDir,
 			'cvs!'      => \$::Do_CVS,
 			'html!'	    => \$do_log_types{'html'},
+			'idleparttime=s' => \$ReaperThreshold,
 			'initiallog!' => \$::LogInitial,
 			'log=s'	    => \$::LogName_Pattern,
 			'lroot=s'   => \$::Log_LocalPath,
@@ -909,6 +917,11 @@ sub on_public {
 
   if ($arg =~ /^$mynick[,:]\s*(.*)$/i) {
     command_for_me($self, $event, $to[0], $1, 0);
+  }
+
+  if ($ReaperThreshold && !$ReaperScheduled) {
+      $self->schedule( $ReaperThreshold/4, \&ReapIdleChannels, $self );
+      $ReaperScheduled = 1;
   }
 }
 
@@ -1607,6 +1620,30 @@ sub AdminNotice
     my ($message) = @_;
     Say( $AdminChannel->{CONN}, $AdminChannel->{NAME}, $message)
 	if $AdminChannel->{Listening};
+}
+
+sub ReapIdleChannels($)
+{
+    my ($conn) = @_;
+
+    for (my $index=0; $index <= $#::Channels; $index++) {
+	# have to use indexed-for since we intend to modify the array
+	my $channel = $::Channels[$index];
+	if ($channel->{Listening} && $channel != $AdminChannel) {
+	    # if nothing interesting has been heard from the channel in 2 hours
+	    if ((time - $channel->{MsgTime}) > $ReaperThreshold) {
+		log_admin_event($conn, undef, time, "$::Nick auto-departing $channel->{NAME}");
+		print "Auto-departing '$channel->{NAME}'\n";
+		$conn->me($channel->{NAME}, 'excuses himself; his presence no longer seems to be needed');
+		$conn->part($channel->{NAME});
+		Channel_close_logs($channel);
+		$channel->{Listening} = 0;
+		splice(@::Channels, $index, 1);
+		redo;		# restart w/o incrementing
+	    }
+	}
+    }
+    $ReaperScheduled = 0;
 }
 
 __END__
