@@ -1486,7 +1486,7 @@ sub command_for_me ($$$$$) {
 
       Say( $self,
 	   $dest_nick,
-	   "I have made the request to generate $::Log_URI$docname, $from_nick"
+	   "I have made the request to generate $::Log_URI$docname $from_nick"
 	 );
 
       return;
