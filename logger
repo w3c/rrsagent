@@ -1116,6 +1116,13 @@ sub on_join {
 	 $channel->{Listening} ? 'is logging' : 'is not logging',
 	 0
         );
+
+    Say( $self,
+	 $event->to,
+	 'log is '.$channel->{LogURIPrefix},
+	 0
+        ) if $channel->{LogURIPrefix} && $channel->{Listening};
+
     $channel->{MsgTime} = time;
   }
 
@@ -1295,7 +1302,7 @@ sub command_for_me ($$$$$) {
     return;
   }
 
-  if($command=~ /^(?:pointer|bookmark|here|where am i\?)/i) {
+  if($command=~ /^(?:pointer|bookmark|here|where am i\?)\??/i) {
     my($log_uri)=$channel->{LogURIPrefix};
 
     my $output;
