@@ -200,8 +200,6 @@ sub open_logs ($) {
   my @tm = gmtime;
   $tm[5]+= 1900; $tm[4]++;
   my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
-  my $time = sprintf("%02d:%02d:%02d", $tm[2], $tm[1], $tm[0]);
-  my $date_time="$date $time";
 
   if (defined $::LogName) {
       $log_file = "$::LogName.txt";
@@ -222,7 +220,7 @@ sub open_logs ($) {
 
   # Failed!
   if (!open($::Channel_TEXTLOG, ">>$log_file")) {
-    $self->privmsg("#$channel", "failed to append to log file, quitting - $!");
+    $self->privmsg("#$channel", "failed to open text log file, quitting - $!");
     exit(0);
   }
 
@@ -230,7 +228,7 @@ sub open_logs ($) {
 
   if(!-r $rdf_log_file) {
     if (!open($::Channel_RDFLOG, ">$rdf_log_file")) {
-      $self->privmsg("#$channel", "failed to append to log file, quitting - $!");
+      $self->privmsg("#$channel", "failed to open RDF log file, quitting - $!");
       exit(0);
     }
 
@@ -246,18 +244,18 @@ sub open_logs ($) {
 EOT
   } else {
     if (!open($::Channel_RDFLOG, "+<$rdf_log_file")) {
-      $self->privmsg("#$channel", "failed to append to log file, quitting - $!");
+      $self->privmsg("#$channel", "failed to append to RDF log file, quitting - $!");
       exit(0);
     }
+  }
 
-    # figure out whether stdio expands NEWLINE to CRLF
-    if (!defined $::rdf_suffix_length) {
-	seek($::Channel_RDFLOG, 0, 2);	# find the end
-	my $curlen = tell($::Channel_RDFLOG);
-	print $::Channel_RDFLOG $::rdf_suffix;
-	$::rdf_suffix_length = tell($::Channel_RDFLOG) - $curlen;
-	truncate ($::Channel_RDFLOG, $curlen);
-    }
+  # figure out whether stdio expands NEWLINE to CRLF
+  if (!defined $::rdf_suffix_length) {
+      seek($::Channel_RDFLOG, 0, 2);	# find the end
+      my $curlen = tell($::Channel_RDFLOG);
+      print $::Channel_RDFLOG $::rdf_suffix;
+      $::rdf_suffix_length = tell($::Channel_RDFLOG) - $curlen;
+      truncate ($::Channel_RDFLOG, $curlen);
   }
 
   $::Channel_RDFLOG->autoflush(1);
