@@ -56,6 +56,8 @@ $::IRC_Name='Chat Logger';
 $::Max_Results=5;
 $::Max_Max_Results=20;
 
+$::LogName=undef;
+
 # ugly system dependencies
 # MSWin does not permit ":" in file path components
 $::PortSep = $^O eq "MSWin32" ? "/" : ":";
@@ -132,8 +134,9 @@ package main;
 
 sub main {
 
-  die "Usage: $::program [-nick <nick>] password channel-URI channel-title log-dir log-URI\n  where channel-URI is like irc://host[:port]/channel\n"
-    unless GetOptions ('nick=s' => \$::Nick) && @ARGV==5;
+  die "Usage: $::program [-nick <nick>] [-log <logfile>] password channel-URI channel-title log-dir log-URI\n  where channel-URI is like irc://host[:port]/channel\n"
+    unless GetOptions ('nick=s'	=> \$::Nick,
+		       'log=s'	=> \$::LogName) && @ARGV==5;
 
   my($password,$uri_string,$channel_title, $log_root, $log_uri_string)=@ARGV;
 
@@ -187,14 +190,9 @@ sub log_event ($$$;$) {
   my $uri=$::Channel_URI;
 
   my $channel=$uri->channel;
-  my $log_dir=log_dir_for_channel($uri);
 
-  mkpath([$log_dir], 0, 0755) if ! -d $log_dir;
-  # Failed!
-  if (! -d $log_dir) {
-    $self->privmsg("#$channel", "failed to create chat log dir, quitting");
-    exit(0);
-  }
+  my $log_file=undef;
+  my $rdf_log_file=undef;
 
   my @tm = gmtime($t);
   $tm[5]+= 1900; $tm[4]++;
@@ -202,8 +200,22 @@ sub log_event ($$$;$) {
   my $time = sprintf("%02d:%02d:%02d", $tm[2], $tm[1], $tm[0]);
   my $date_time="$date $time";
 
-  my $log_file = "$log_dir/$date.txt";
-  my $rdf_log_file = "$log_dir/$date.rdf";
+  if (defined $::LogName) {
+      $log_file = "$::LogName.txt";
+      $rdf_log_file = "$::LogName.rdf";
+  } else {
+      my $log_dir=log_dir_for_channel($uri);
+
+      mkpath([$log_dir], 0, 0755) if ! -d $log_dir;
+      # Failed!
+      if (! -d $log_dir) {
+	$self->privmsg("#$channel", "failed to create chat log dir, quitting");
+	exit(0);
+      }
+
+      $log_file = "$log_dir/$date.txt";
+      $rdf_log_file = "$log_dir/$date.rdf";
+  } 
 
   my $rdf_suffix="    </rdf:Seq>\n  </foaf:chatEventList>\n</foaf:ChatChannel>\n</rdf:RDF>\n";
 
@@ -297,6 +309,7 @@ sub log_dir_for_channel ($) {
 }
 
 
+# %% RRS: make this work for a specified LogName
 sub get_logs ($$) {
   my($self,$uri)=@_;
 
