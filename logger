@@ -2043,7 +2043,7 @@ sub DisplayActionItems($$$$$:$)
     }
     my $msg = ($addressed ? 'I see ' : 'sees ');
     if ($actionCount == 0) {
-	my $msg .= 'no action items';
+	$msg .= 'no action items';
 	Say( $self, $dest_nick, $msg, $addressed );
 	log_event($self, $event, time, $msg, $nick);
 	return 1;
