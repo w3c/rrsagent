@@ -2168,7 +2168,7 @@ sub ExportActionList($)
 	    system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
 
 	    if (my $access = $channel->{LogAccess}) {
-		system(("${ECHO}make URI=$::Log_URI$docname $access &'"));
+		system(("${ECHO}make URI=$::Log_URI$docname $access &"));
 	    }
 	}
 
