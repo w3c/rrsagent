@@ -1634,7 +1634,7 @@ sub command_for_me ($$$$$) {
   }
 
   Say( $self, $dest_nick, $output );
-  log_event($self, $event, time, $output) unless $is_private;
+  log_event($self, $event, time, $output, $self->nick) unless $is_private;
 }
 
 
