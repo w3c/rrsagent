@@ -1483,10 +1483,12 @@ sub command_for_me ($$$$$) {
 	  system(("${ECHO}make URI=$::Log_URI$docname $access &"));
       }
 
+      my $msg = "I have made the request to generate $::Log_URI$docname $from_nick";
       Say( $self,
 	   $dest_nick,
-	   "I have made the request to generate $::Log_URI$docname $from_nick"
+	   $msg
 	 );
+      log_event($self, $event, time, $msg);
 
       return;
   }
