@@ -33,6 +33,7 @@ use strict;
 use File::Path;
 use File::Basename;
 use Sys::Hostname;
+use Getopt::Long;
 
 # From CPAN
 use URI;
@@ -126,7 +127,8 @@ package main;
 sub main {
 
   die "Usage: $::program password channel-URI channel-title log-dir log-URI\n  where channel-URI is like irc://host[:port]/channel\n"
-    unless @ARGV==5;
+    unless GetOptions ('nick=s' => \$::Nick) && @ARGV==5;
+
   my($password,$uri_string,$channel_title, $log_root, $log_uri_string)=@ARGV;
 
   my $uri;
