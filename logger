@@ -1130,7 +1130,7 @@ sub on_join {
 	 $msg,
 	 0
         );
-    log_event($self, $event, time, $msg, $nick);
+    log_event($self, $event, time, $msg);
 
     $channel->{MsgTime} = time;
   }
