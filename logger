@@ -2100,7 +2100,7 @@ sub ExportActionList($)
 <?xml version="1.0" encoding="UTF-8"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:dc="http://purl.org/dc/elements/1.1/"
-         xmlns:m="http://www.w3.org/2000/11/mr76/w3cStyle#">
+         xmlns:m="http://www.w3.org/2002/07/meeting#">
 
 <rdf:Description rdf:about="">
   <dc:date>$datetime</dc:date>
