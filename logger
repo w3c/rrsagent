@@ -324,6 +324,7 @@ exit(0);
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
 				# {ActionLog}
+				# {MinutesName}
 
 				# ActionItems[] -> {Topic}, {Pointer}, {id}
 
@@ -1399,8 +1400,8 @@ sub command_for_me ($$$$$) {
       return 1;
   }
 
-  # [please] make log[s] {team,member,world}[-{access,visible}]
-  # [please] set log[s] {team,member,world}[-{access,visible}]
+  # [please] make log[s] {team,member,public,world}[-{access,visible,read,readable}]
+  # [please] set log[s] {team,member,public,world}[-{access,visible,read,readable}]
   if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)\s+logs?\s+(\S+)\s*$/i) {
       my $access = $1;
 
@@ -1412,12 +1413,12 @@ sub command_for_me ($$$$$) {
 	  return;
       }
 
-      if ($access =~ m/^((?:team|member|world))(?:-access|-visible|)$/i) {
+      if ($access =~ m/^((?:team|member|public|world))(?:-access|-visible|-read|-readable|)$/i) {
 	  $access = lc($1).'-access';
       } else {
 	  Say( $self,
 	       $dest_nick,
-	       "$from_nick, access must be one of team-access, member-access, or world-access"
+	       "$from_nick, access must be one of team-access, member-access, public-access or world-access"
 	     );
 	  return;
       }
@@ -1439,6 +1440,10 @@ sub command_for_me ($$$$$) {
 
       for my $file (split(' ', $channel->{CVSFiles})) {
 	  system(("${ECHO}make URI=$::Log_URI$file $access &"));
+      }
+
+      if (my $file = $channel->{MinutesName}) {
+          system(("${ECHO}make URI=$::Log_URI$file $access &"));
       }
 
       Say( $self,
@@ -1473,20 +1478,26 @@ sub command_for_me ($$$$$) {
       }
 
       my $input = $channel->{LogBasename};
-      my $docname = strftime( $::MinutesName_Pattern, gmtime );
-      my $channel_name=$channel->{NAME};
-      $channel_name =~ s/^[#&]//;
-      $docname =~ s/<channel>/$channel_name/;
+      my $docname = $channel->{MinutesName};
+      unless ($docname) {
+	  $docname = strftime( $::MinutesName_Pattern, gmtime );
+	  my $channel_name=$channel->{NAME};
+	  $channel_name =~ s/^[#&]//;
+	  $docname =~ s/<channel>/$channel_name/;
+	  $channel->{MinutesName} = $docname;
+      }
+
       my $logdir = ($::Log_LocalPath ? $::Log_LocalPath : './');
 
       my $msg = "I have made the request to generate $::Log_URI$docname $from_nick";
       log_event($self, $event, time, $msg, $self->nick);
 
-      system(("${ECHO}make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes &"));
-      if (my $access = $channel->{LogAccess}) {
-	  system(("${ECHO}make URI=$::Log_URI$docname $access &"));
+      my $access = $channel->{LogAccess};
+      if ($access) {
+	  $access = "; ${ECHO}make URI=$::Log_URI$docname $access";
       }
 
+      system(("${ECHO}make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes $access &"));
       Say( $self,
 	   $dest_nick,
 	   $msg
