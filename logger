@@ -415,7 +415,7 @@ sub log_event ($$$;$) {
 	$escapedMsg = URI2link($escapedMsg, @uris);
     }
 
-    print $::Channel_HTMLLOG qq{<dt ID="$ID">$time [$nick]</dt><dd>}.$escapedMsg.qq{</dd>\n};
+    print $::Channel_HTMLLOG qq{<dt id="$ID">$time [$nick]</dt><dd>}.$escapedMsg.qq{</dd>\n};
     print $::Channel_HTMLLOG $::html_suffix;
   }
 
