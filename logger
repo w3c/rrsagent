@@ -26,6 +26,8 @@
 #
 # For documentation run perldoc on this file 'perldoc logger'
 #
+# Modifications from Dave's original made by
+# Ralph Swick http://www.w3.org/People/all#swick
 
 use strict;
 
