@@ -2025,7 +2025,7 @@ sub DisplayActionItems($$$$$)
     if ($actionCount) {
 	$actionCount = 0;	# count the number of still-open actions
 	for my $action (@{$actionitems}) {
-	    $actionCount++ unless $action->{Status} eq $::ActionDropped;
+	    $actionCount++ unless $action->{Status} && $action->{Status} eq $::ActionDropped;
 	}
     }
     if ($actionCount == 0) {
