@@ -881,6 +881,7 @@ sub on_disconnect {
   my $m="Disconnected from ". $event->from(). " (". ($event->args())[0]. ")";
   log_admin_event($self, $event, $t, $m);
   log_event($self, $event, $t, $m);
+  log_pending_output($self);
 
   return if $::Departing;
 
@@ -1729,6 +1730,28 @@ sub AdminNotice
     my ($message) = @_;
     Say( $AdminChannel->{CONN}, $AdminChannel->{NAME}, $message)
 	if $AdminChannel->{Listening};
+}
+
+# on forced disconnect, report what channels had output for debugging
+sub log_pending_output($)
+{
+    my ($self) = @_;
+    my @queuedNicks = keys %OutputQueue;
+    my $msg;
+    if ($#queuedNicks == -1) {
+	$msg = 'no output is queued';
+    }
+    else {
+	$msg = 'output is waiting for ';
+	my $sep = '';
+	for my $nick (@queuedNicks) {
+	    my $Qentry = @{$OutputQueue{$nick}->{queue}}[0];
+	    my $to = @{$Qentry}[1];
+	    $msg.=$sep.(ref($to) eq "ARRAY" ? join('~', @{$to}) : $to);
+	    $sep = ', ';
+	}
+    }
+    log_admin_event($self, undef, time, $msg);
 }
 
 # Looks for messages to which to respond that are not directly addressed
