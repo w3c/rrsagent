@@ -1221,17 +1221,22 @@ sub command_for_me ($$$$$) {
 	Say( $self, $dest_nick, "I don't know what channel you might mean" );
 	return;
     }
-    # Log who told me to quit
-    log_admin_event($self, $event, time, "$::Nick told to depart $channel_name");
-    $self->part($channel_name);
-    Channel_close_logs($channel);
-    $channel->{Listening} = 0;
-    for (my $index=0; $index <= $#::Channels; $index++) {
-	if ($::Channels[$index] == $channel) {
-	    splice(@::Channels, $index, 1);
-	    last;
-	}
-    }
+    DisplayActionItems($self, $event, $channel, $from_nick, $dest_nick);
+    Perform( $dest_nick,
+	     sub {
+		# Log who told me to quit
+		log_admin_event($self, $event, time, "$::Nick told to depart $channel_name");
+		$self->part($channel_name);
+		Channel_close_logs($channel);
+		$channel->{Listening} = 0;
+		for (my $index=0; $index <= $#::Channels; $index++) {
+		    if ($::Channels[$index] == $channel) {
+			splice(@::Channels, $index, 1);
+			last;
+		    }
+		}
+	    }
+	  );
     return;
   }
 
@@ -1309,36 +1314,7 @@ sub command_for_me ($$$$$) {
   # [please] show [the] action[ item]s?
   if ($command =~ /^what(?:\s+are\s+the)?\s+action(?:\s+item)?s\?$/i ||
       $command =~ /^(?:please\s+|pls\s+)?(?:show|list)(?:\s+the)?\s+action(?:\s+item)?s$/i) {
-      $channel->{MsgTime} = time;
-      my $nick = $self->nick;
-      if ($channel->{IgnoreActions}) {
-	  my $msg = "I am ignoring action items, $from_nick";
-	  Say( $self, $dest_nick, $msg );
-	  log_event($self, $event, time, $msg, $nick);
-	  return 1;
-      }
-      my $actionitems = $channel->{ActionItems} ? $channel->{ActionItems} : [];
-      my $actionCount = $#{$actionitems} + 1;
-      if ($actionCount == 0) {
-	  my $msg = 'I see no action items';
-	  Say( $self, $dest_nick, $msg );
-	  log_event($self, $event, time, $msg, $nick);
-	  return 1;
-      }
-      my $action_index = 1;
-      my $msg = 'I see '.$actionCount.' action item'.($actionCount == 1 ? '' : 's').':';
-      Say( $self, $dest_nick, $msg );
-      log_event($self, $event, time, $msg, $nick);
-      for my $action (@{$actionitems}) {
-	  $msg = 'ACTION: '.$action->{Topic}.' ['.$action_index++.']';
-	  Say( $self, $dest_nick, $msg );
-	  log_event($self, $event, time, $msg, $nick);
-	  if ($action->{Pointer}) {
-	      $msg = '  recorded in '.$action->{Pointer};
-	      Say( $self, $dest_nick, $msg );
-	      log_event($self, $event, time, $msg, $nick);
-	  }
-      }
+      DisplayActionItems($self, $event, $channel, $from_nick, $dest_nick);
       return 1;
   }
 
@@ -1717,6 +1693,33 @@ sub Say {
     }
 }
 
+# Perform an action after queued output has been drained
+#
+# Accepts: $nick - channel whose output queue must be drained first
+#	   $proc - procedure to be called
+sub Perform {
+    my ($nick, $proc) = @_;
+
+    unless (ref $proc eq 'CODE') {
+	warn 'Second argument to Perform() is not a coderef';
+	return;
+    }
+
+    my $to = ref($nick) eq "ARRAY" ? join('~', @{$nick}) : $nick;
+
+    my @queues = keys %OutputQueue;
+
+    # when queue is empty, call the procedure immediately
+
+    if (! $SayScheduled) {
+	$proc->();
+    }
+    else {
+	my $queue = \@{$OutputQueue{$to}->{queue}};
+	push @$queue, [$proc];
+    }
+}
+
 sub _doSay {
     my ($conn) = @_;		# ignored
 
@@ -1733,27 +1736,32 @@ sub _doSay {
     my $queue = \@{$OutputQueue{$nickToOutput}->{queue}};
     if ( $#$queue >= 0) {
 	my $conn = $$queue[0][0];
-	my $nick = $$queue[0][1];
-	my $msg = $$queue[0][2];
-	my $addressed = $$queue[0][3];
-	shift @$queue;
+	if (ref($conn) eq "Net::IRC::Connection") {
+	    my $nick = $$queue[0][1];
+	    my $msg = $$queue[0][2];
+	    my $addressed = $$queue[0][3];
+	    shift @$queue;
 
-	# safe time to next output depends on the size of this output text;
-	# thanks to Hugo Haas for recommending part of the algorithm.
+	    # safe time to next output depends on the size of this output text;
+	    # thanks to Hugo Haas for recommending part of the algorithm.
 
-	my $msgLength = length($msg) + ($addressed ? 9 : 18);
-	# 9 = length('PRIVMSG '),  18 = length('PRIVMSG :^AACTION ')
+	    my $msgLength = length($msg) + ($addressed ? 9 : 18);
+	    # 9 = length('PRIVMSG '),  18 = length('PRIVMSG :^AACTION ')
 
-	# the more output we have to do, the more likely it is that a
-	# slow client will cause our output queue in the server to build
-	# Therefore we add more penalty as a function of the number of
-	# bytes we expect to output
-	$interval = 1 + int ($msgLength/($OutputBytesPending > 320 ? 60 : 100));
+	    # the more output we have to do, the more likely it is that a
+	    # slow client will cause our output queue in the server to build
+	    # Therefore we add more penalty as a function of the number of
+	    # bytes we expect to output
+	    $interval = 1 + int ($msgLength/($OutputBytesPending > 320 ? 60 : 100));
 
-	if ($addressed) { $conn->privmsg($nick, $msg) }
-	else { $conn->me($nick, $msg) }
+	    if ($addressed) { $conn->privmsg($nick, $msg) }
+	    else { $conn->me($nick, $msg) }
 
-	$OutputBytesPending -= $msgLength;
+	    $OutputBytesPending -= $msgLength;
+	}
+	else { # it's an action to perform, now that channel output is drained
+	    $conn->();
+	}
     }
 
     if ($#$queue < 0) {
@@ -1985,6 +1993,43 @@ sub ReapIdleChannels($)
     }
     $ReaperScheduled = 0;
 }
+
+
+sub DisplayActionItems($$$$$)
+{
+    my ($self, $event, $channel, $from_nick, $dest_nick) = @_;
+    $channel->{MsgTime} = time;
+    my $nick = $self->nick;
+    if ($channel->{IgnoreActions}) {
+	my $msg = "I am ignoring action items, $from_nick";
+	Say( $self, $dest_nick, $msg );
+	log_event($self, $event, time, $msg, $nick);
+	return 1;
+    }
+    my $actionitems = $channel->{ActionItems} ? $channel->{ActionItems} : [];
+    my $actionCount = $#{$actionitems} + 1;
+    if ($actionCount == 0) {
+	my $msg = 'I see no action items';
+	Say( $self, $dest_nick, $msg );
+	log_event($self, $event, time, $msg, $nick);
+	return 1;
+    }
+    my $action_index = 1;
+    my $msg = 'I see '.$actionCount.' action item'.($actionCount == 1 ? '' : 's').':';
+    Say( $self, $dest_nick, $msg );
+    log_event($self, $event, time, $msg, $nick);
+    for my $action (@{$actionitems}) {
+	$msg = 'ACTION: '.$action->{Topic}.' ['.$action_index++.']';
+	Say( $self, $dest_nick, $msg );
+	log_event($self, $event, time, $msg, $nick);
+	if ($action->{Pointer}) {
+	    $msg = '  recorded in '.$action->{Pointer};
+	    Say( $self, $dest_nick, $msg );
+	    log_event($self, $event, time, $msg, $nick);
+	}
+    }
+}
+
 
 __END__
 
