@@ -123,6 +123,33 @@ $::html_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 $::rdf_suffix="    </rdf:Seq>\n  </foaf:chatEventList>\n</foaf:ChatChannel>\n</rdf:RDF>\n";
 $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 
+#URIschemes and URIpatterns must match in order.  The order is not signficant.
+@::URIschemes = (
+    'http://',
+    'news:',
+    'ftp://',
+    'file://',
+    'gopher://',
+    'nntp://',
+    'wais://',
+    'telnet://',
+    'prospero://',
+    'mailto:'
+    );
+
+@::URIpatterns = (
+    qr|(http://)([^] \)>\"\'\n\[\t\\]*)(.*)$|,
+    qr|(news:)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(ftp://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(file://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(gopher://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(nntp://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(wais://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(telnet://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(prospero://)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    qr|(mailto:)([^] \)>"\'\n[\t\\]*)(.*)$|,
+    );
+
 ######################################################################
 package URI::irc;
 
@@ -354,12 +381,19 @@ sub log_event ($$$;$) {
   }
   $::Channel_Last_ID=$ID;
 
+  my @uris = getURI($msg);
+
   if ($::LogHTML) {
     # seek back
     # @@ note that this assumes the existing data was NL-expanded identically
     seek($::Channel_HTMLLOG, -$::html_suffix_length, 2); # 2= SEEK_END
 
-    print $::Channel_HTMLLOG qq{<dt ID="$ID">$time [$nick]</dt><dd>}.xml_escape($msg).qq{</dd>\n};
+    my $escapedMsg = xml_escape($msg);
+    if ($#uris > -1) {
+	$escapedMsg = URI2link($escapedMsg, @uris);
+    }
+
+    print $::Channel_HTMLLOG qq{<dt ID="$ID">$time [$nick]</dt><dd>}.$escapedMsg.qq{</dd>\n};
     print $::Channel_HTMLLOG $::html_suffix;
   }
 
@@ -374,6 +408,9 @@ sub log_event ($$$;$) {
 EOT
   print $::Channel_RDFLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
   print $::Channel_RDFLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
+  foreach my $uri (@uris) {
+    print $::Channel_RDFLOG qq{        <foaf:references rdf:resource="$uri"/>\n};
+  }
   print $::Channel_RDFLOG qq{       </foaf:chatEvent>\n};
   print $::Channel_RDFLOG qq{      </rdf:li>\n};
   print $::Channel_RDFLOG $::rdf_suffix;
@@ -895,6 +932,65 @@ sub join_channel($$) {
   $conn->add_handler('topic', \&on_topic);
   $conn->add_handler('notice', \&on_notice);
 
+}
+
+# URI recognition
+# The following URI recognition algorithm was translated from
+# the Hypermail implementation; see parseurl() in
+# http://dev.w3.org/cvsweb/~checkout~/hypermess/hypermail/src/string.c?rev=1.4
+
+#returns a list of any URIs found in the input string
+sub getURI ($)
+{
+    my ($l) = @_;
+    my @ret = ();
+
+    if ($l !~ /:/o) {		# give up if input can't have any schemes
+	return ();
+    }
+
+    chomp $l;
+
+    while (my $leftmost = length ($l)) { # while string is not empty
+	my $i = 0;
+	my $match = -1;
+	foreach my $u (@::URIschemes) {	# search for first matching URI scheme
+	    my $p = index( $l, $u );
+	    if ($p >= 0 && $p < $leftmost) {
+		$leftmost = $p;
+		$match = $i;
+	    }
+	    $i++;
+	}
+
+	if ($match != -1) {	# if a scheme was found, extract the URI
+	    $l = substr($l, $leftmost);
+	    my $u = $l;
+	    $u =~ s/$::URIpatterns[$match]/$1$2/;
+	    $l = $3;		# rest of string after extracting the pattern
+	    @ret=(@ret, $u);
+	} else {
+	    $l = "";
+	}
+    }
+
+    return @ret;
+}
+
+#Return a string with any URIs specified by the second argument (a list)
+#found in the first argument expanded to HTML anchors
+sub URI2link ($@)
+{
+    my ($l, @uri) = @_;
+
+    chomp $l;
+
+    foreach my $u (@uri) {
+	my $p = quotemeta $u;
+	$l =~ s/($p)/<a href="$1">$1<\/a>/;
+    }
+
+    return $l;
 }
 
 __END__
