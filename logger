@@ -113,6 +113,7 @@ $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
     qr|(mailto:)([^] \)>"\'\n[\t\\]*)(.*)$|,
     );
 
+$::ActionDropped = 'dropped';
 
 
 # Global variables
@@ -131,6 +132,9 @@ $::Log_LocalPath=undef;		# include '/' if you need it
 # '.html', '.rdf', '.txt' will be appended
 $::LogName_Pattern=undef;
 $::Default_Pattern = '<channel>/%Y-%m-%d';
+
+$::ActionLogName_Pattern=undef;
+$::Default_ActionPattern = '<channel>/%Y-%m-%d-actions';
 
 $::Do_CVS=0;			# if logs are to be committed to CVS
 $::TestMode=0;			# if system() is to be no-op'd
@@ -221,6 +225,7 @@ EOT
   die $usage unless GetOptions (
 			'action!'   => \$::LogActionMsgs,
 			'admin=s'   => \$::AdminDir,
+			'alog=s'    => \$::ActionLogName_Pattern,
 			'cvs!'      => \$::Do_CVS,
 			'helpuri=s' => \$::HelpURI,
 			'html!'	    => \$do_log_types{'html'},
@@ -310,6 +315,8 @@ exit(0);
 				# {ActionItems} {IgnoreActions}
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
+
+				# ActionItems[] -> {Topic}, {Pointer}, {id}
 
 sub Channel_new ($) {
   my($uri)=@_;
@@ -1338,11 +1345,12 @@ sub command_for_me ($$$$$) {
       $action = $action - 1; # delete must be numeric
       if ($actionitems) {
 	  if ($action <= $#{$actionitems}) {
+	      $actionitems->[$action]->{Status} = $::ActionDropped;
+	      ExportActionList( $channel );
 	      Say( $self,
 		   $dest_nick,
 		   'removing action '.($action+1).', '.$actionitems->[$action]->{Topic}
 		  );
-	      splice @{$actionitems}, $action, 1;
 	  }
 	  else {
 	      my $length = $#{$actionitems}+1;
@@ -1864,6 +1872,8 @@ sub watch_significant_events ($$$$$$) {
 		$channel->{ActionItems} = $actionitems;
 	    }
 	    my $count = $#{$actionitems} + 1;
+	    $action->{id} = $count;
+	    ExportActionList($channel);
 	    Say( $self,
 		 $dest_nick,
 		 ($addressed ? '' : 'records ').'action '.$count,
@@ -1871,8 +1881,8 @@ sub watch_significant_events ($$$$$$) {
 	       );
 	}
 	else {
-	    my $action = $2;
-	    if ($action !~ m/^\d+$/ || $action == 0) {
+	    my $actionID = $2;
+	    if ($actionID !~ m/^\d+$/ || $actionID == 0) {
 		if ($addressed) {
 		    Say( $self,
 			 $dest_nick,
@@ -1882,21 +1892,22 @@ sub watch_significant_events ($$$$$$) {
 		}
 		return 1;
 	    }
-	    $action = $action - 1; # delete must be numeric
+	    $actionID = $actionID - 1; # delete must be numeric
 	    if ($actionitems) {
-		if ($action <= $#{$actionitems}) {
+		if ($actionID <= $#{$actionitems}) {
+		    $actionitems->[$actionID]->{Status} = $::ActionDropped;
+		    ExportActionList($channel);
 		    Say( $self,
 			 $dest_nick,
-			 ($addressed ? 'removing' : 'removes').' action '.($action+1).', '.$actionitems->[$action]->{Topic},
+			 ($addressed ? 'dropping' : 'drops').' action '.($actionID+1).', '.$actionitems->[$actionID]->{Topic},
 			 $addressed
 			);
-		    splice @{$actionitems}, $action, 1;
 		}
 		elsif ($addressed) {
 		    my $length = $#{$actionitems}+1;
 		    Say( $self,
 			 $dest_nick,
-			 'I only see '.$length.' action item'.($length == 1 ? '' : 's'),
+			 'I only see '.$length.' action item'.($length == 1 ? '' : 's').', '.$from_nick,
 			 1
 			);
 		}
@@ -1944,12 +1955,13 @@ sub watch_significant_events ($$$$$$) {
 	$which = $which - 1; # index must be numeric
 	if ($action) {
 	    if ($which <= $#{$actionitems}) {
+		$actionitems->[$which]->{Topic} = $action->{Topic};
+		ExportActionList($channel);
 		Say( $self,
 		     $dest_nick,
 		     ($addressed ? '' : 'records ').'action '.($which+1).' replaced',
 		     $addressed
 		    );
-		splice @{$actionitems}, $which, 1, $action;
 		}
 	    elsif ($addressed) {
 		my $length = $#{$actionitems}+1;
@@ -1963,7 +1975,7 @@ sub watch_significant_events ($$$$$$) {
 	else {
 	    Say( $self,
 		 $dest_nick,
-		 ($addressed ? 'I see' : 'sees').' no action items',
+		 ($addressed ? 'I see' : 'sees').' no open action items',
 		 $addressed
 		);
 	}
@@ -2009,18 +2021,24 @@ sub DisplayActionItems($$$$$)
     }
     my $actionitems = $channel->{ActionItems} ? $channel->{ActionItems} : [];
     my $actionCount = $#{$actionitems} + 1;
+    if ($actionCount) {
+	$actionCount = 0;	# count the number of still-open actions
+	for my $action (@{$actionitems}) {
+	    $actionCount++ unless $action->{Status} eq $::ActionDropped;
+	}
+    }
     if ($actionCount == 0) {
 	my $msg = 'I see no action items';
 	Say( $self, $dest_nick, $msg );
 	log_event($self, $event, time, $msg, $nick);
 	return 1;
     }
-    my $action_index = 1;
-    my $msg = 'I see '.$actionCount.' action item'.($actionCount == 1 ? '' : 's').':';
+    my $msg = 'I see '.$actionCount.' open action item'.($actionCount == 1 ? '' : 's').':';
     Say( $self, $dest_nick, $msg );
     log_event($self, $event, time, $msg, $nick);
     for my $action (@{$actionitems}) {
-	$msg = 'ACTION: '.$action->{Topic}.' ['.$action_index++.']';
+	next if $action->{Status} && $action->{Status} eq $::ActionDropped;
+	$msg = 'ACTION: '.$action->{Topic}.' ['.$action->{id}.']';
 	Say( $self, $dest_nick, $msg );
 	log_event($self, $event, time, $msg, $nick);
 	if ($action->{Pointer}) {
@@ -2029,6 +2047,88 @@ sub DisplayActionItems($$$$$)
 	    log_event($self, $event, time, $msg, $nick);
 	}
     }
+}
+
+
+sub ExportActionList($)
+{
+    my ($channel) = @_;
+
+    my $docname;
+    if ($::ActionLogName_Pattern) {
+	$docname = strftime( $::ActionLogName_Pattern, gmtime );
+    }
+    else {
+	$docname = strftime( $::Default_ActionPattern, gmtime );
+	my $log_dir=Channel_get_log_dir($channel);
+	
+	print "making $log_dir\n";
+	mkpath([$log_dir], 0, 0755) if ! -d $log_dir;
+	# Failed!
+	if (! -d $log_dir) {
+	    log_admin_event($channel, undef, time, "Failed to create chat log dir $log_dir - $!");
+	    unlink $::PID_File;
+	    return;
+	}
+    }
+
+    {
+	my $channel_name = $channel->{NAME};
+	$channel_name =~ s/^[#&]//;
+
+	$docname =~ s/<channel>/$channel_name/;
+    }
+
+    unless (open( ACTIONS, ">".($::Log_LocalPath || './').$docname)) {
+	print 'Failed to open '.($::Log_LocalPath || './').$docname."\n";
+	return 0;
+    }
+
+    my $datetime = strftime( '%Y-%m-%dT%H:%MZ', gmtime );
+    my $mtgRecord = xml_escape($channel->{LogURIPrefix} || $::Log_URI);
+
+    print ACTIONS <<"EOT";
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+         xmlns:dc="http://purl.org/dc/elements/1.1/"
+         xmlns:m="http://www.w3.org/2000/11/mr76/w3cStyle#">
+
+<rdf:Description rdf:about="">
+  <dc:date>$datetime</dc:date>
+</rdf:Description>
+
+<rdf:Description rdf:about="$mtgRecord">
+  <m:ActionList>
+    <rdf:Seq>
+EOT
+
+    my $actionitems = $channel->{ActionItems} ? $channel->{ActionItems} : [];
+    if ($#{$actionitems} >= 0) {
+	for my $action (@{$actionitems}) {
+	    print ACTIONS
+'      <li><m:ActionItem rdf:about="#',$action->{id},'">
+        <dc:description>',xml_escape($action->{Topic}),'</dc:description>';
+	    print ACTIONS '
+        <m:status>',$action->{Status},'</m:status>' if $action->{Status};
+	    print ACTIONS '
+        <dc:source rdf:resource="',xml_escape($action->{Pointer}),'"/>'
+		if $action->{Pointer};
+	    print ACTIONS '
+        </m:ActionItem></li>
+';
+	}
+    }
+
+    print ACTIONS
+'    </rdf:Seq>
+  </m:ActionList>
+</rdf:Description>
+
+</rdf:RDF>
+';
+
+    close ACTIONS;
+    return 1;
 }
 
 
