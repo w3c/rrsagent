@@ -1715,7 +1715,8 @@ sub xml_escape ($) {
   $string =~ s/</\&lt;/g;
   $string =~ s/>/\&gt;/g;
   $string =~ s/[\x00-\x1F]//g;  # remove ASCII 0-31
-  $string =~ s/([\x80-\xFF])/"\&#".ord($1).";"/ge; # escape ASCII 128-255
+# Output is UTF-8, so don't throw away high characters
+#  $string =~ s/([\x80-\xFF])/"\&#".ord($1).";"/ge; # escape ASCII 128-255
   $string;
 }
 
