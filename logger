@@ -50,6 +50,7 @@ use Net::IRC;
 $ENV{PATH}='/bin:/usr/bin:/usr/local/bin';
 
 my $AdminChannel;		# channel for administrative messages
+$::LogInitial = 1;		# log the initial channel
 
 # Global constants
 $::program=basename $0;
@@ -183,6 +184,7 @@ Usage: $::program [option...] password channel-URI
    -cvs             commit logs to CVS
    -html	    write an XHTML log
    -notext	    Do not write a text log
+   -noinitiallog    Do not log the initial channel (specified in arg1)
    -log <pattern>   Name pattern for log files; uses strftime() substitutions
                     default is <channel>/YYYY-MM-DD
                     (\".txt\", \".html\", and \".rdf\" will be appended)
@@ -205,6 +207,7 @@ EOT
 			'admin=s'   => \$::AdminDir,
 			'cvs!'      => \$::Do_CVS,
 			'html!'	    => \$do_log_types{'html'},
+			'initiallog!' => \$::LogInitial,
 			'log=s'	    => \$::LogName_Pattern,
 			'lroot=s'   => \$::Log_LocalPath,
 			'nick=s'    => \$::Nick,
@@ -284,7 +287,7 @@ exit(0);
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
 
-sub Channel_new ($$) {
+sub Channel_new ($) {
   my($uri)=@_;
 
   my $self={};
@@ -293,7 +296,7 @@ sub Channel_new ($$) {
   $self->{URI}=$uri;
 
   my $channel_name = $uri->channel;
-  $channel_name ='#' . $channel_name unless $channel_name =~ m/[\#&]/;
+  $channel_name ='#' . $channel_name unless $channel_name =~ m/^[\#&]/;
 
   $self->{NAME} = $channel_name;
 
@@ -343,7 +346,6 @@ sub Channel_join($) {
 
   my $channel_name=$uri->channel;
 
-  $self->{NAME} = $channel_name;
   $self->{Listening}=1;
 
   my $user_name=$channel_name."-logger";
@@ -431,6 +433,7 @@ sub Channel_get_log_lines ($) {
     return () if !opendir(DIR, $log_dir);
 
     my $name = $self->{NAME};
+    $name =~ s/^[#&]//;
 
     for my $file (reverse sort readdir(DIR)) {
       next unless $file =~ /.*$name.*\.txt/;
@@ -472,10 +475,11 @@ sub Channel_get_log_lines ($) {
 sub Channel_open_logs ($) {
   my $self=shift;
 
-  return if $::Log_Path && $self == $AdminChannel;
+  return if ! $::LogInitial && $self == $AdminChannel;
 
   my $conn=$self->{CONN};
   my $channel_name=$self->{NAME};
+  $channel_name =~ s/^[#&]//;
 
   my @tm = gmtime;
   $tm[5]+= 1900; $tm[4]++;
@@ -504,9 +508,7 @@ sub Channel_open_logs ($) {
 	return;
       }
     }
-    my $name = $self->{NAME};
-    $name =~ s/^[#&]//;
-    $log_name =~ s/<channel>/$name/;
+    $log_name =~ s/<channel>/$channel_name/;
 
     $self->{LogBasename} = $log_name;
     $self->{LogFilePrefix} =
@@ -645,14 +647,14 @@ EOT
       $self->{CVSFiles} = $cvs_files;
       $self->{CVSCommitScheduled} = 0;
       my $ECHO = $::TestMode ? 'echo ' : '';
-      system(("${ECHO}sh -c 'cd $::Log_Path; cvs add $cvs_files &'"));
+      system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $cvs_files &'"));
   }
 }
 
 
 sub Channel_close_logs ($) {
   my $self=shift;
-  return if $::Log_Path && $self == $AdminChannel;
+  return if ! $::LogInitial && $self == $AdminChannel;
   for my $type (@{$self->{LogTypes}}) {
     $self->{FH}->{$type}->close;
     $self->{FH}->{$type}=undef;
@@ -673,7 +675,7 @@ sub log_event ($$$;$) {
 
   $channel->{MsgTime} = time;
 
-  return if $::Log_Path && $channel == $AdminChannel;
+  return if ! $::LogInitial && $channel == $AdminChannel;
 
   my @tm = gmtime($t);
   $tm[5]+= 1900; $tm[4]++;
@@ -763,7 +765,7 @@ EOT
     $self->schedule( $::CVSCommitInterval,
 		     sub
 		     {
-			 system(("${ECHO}sh -c 'cd $::Log_Path; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
+			 system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
 			 $channel->{CVSCommitScheduled} = 0;
 		     }
 		    );
@@ -999,18 +1001,20 @@ sub on_join {
                                "%s has joined $channel_name";
   my $t=time;
   my $m=sprintf($format, $user_nick, $event->userhost);
-  log_event($self, $event, $t, $m);
 
   my $channel = Channel_by_name($channel_name);
   if (!$channel) {
+      $channel_name =~ s/^#//;	# Net::IRC doesn't permit leading '#'
       my $t_uri = $AdminChannel->{URI};
       my $uri_string = 'irc://'.$t_uri->host.':'.$t_uri->port.'/'.$channel_name;
       my $uri = new URI $uri_string;
-      $channel = &Channel_new($uri, '');
+      $channel = &Channel_new($uri);
       $channel->{CONN} = $self;
       $channel->{MsgTime} = time;
       Channel_open_logs($channel);
   }
+
+  log_event($self, $event, $t, $m);
 
   if($user_nick eq $::Nick) {
     $channel->{Listening}=1;	# Always join in listen mode
