@@ -1302,7 +1302,7 @@ sub command_for_me ($$$$$) {
   # what [are the] action[ item]s?
   # [please] show [the] action[ item]s?
   if ($command =~ /^what(?:\s+are\s+the)?\s+action(?:\s+item)?s\?$/i ||
-      $command =~ /^(?:please\s+|pls\s+)?show(?:\s+the)?\s+action(?:\s+item)?s$/i) {
+      $command =~ /^(?:please\s+|pls\s+)?(?:show|list)(?:\s+the)?\s+action(?:\s+item)?s$/i) {
       $channel->{MsgTime} = time;
       if ($channel->{IgnoreActions}) {
 	  Say( $self, $dest_nick, "I am ignoring action items, $from_nick" );
