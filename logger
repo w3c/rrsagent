@@ -1862,7 +1862,7 @@ sub watch_significant_events ($$$$$$) {
 		splice @{$actionitems}, $which, 1, $action;
 		}
 	    elsif ($addressed) {
-		my $length = $#{$action}+1;
+		my $length = $#{$actionitems}+1;
 		Say( $self,
 		     $dest_nick,
 		     'I only see '.$length.' action item'.($length == 1 ? '' : 's'),
