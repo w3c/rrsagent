@@ -1113,15 +1113,14 @@ sub on_join {
     $channel->{Listening} = $::LogInitial if $channel == $AdminChannel;
     Say( $self,
 	 $event->to,
-	 $channel->{Listening} ? 'is logging' : 'is not logging',
+	 $channel->{Listening}
+	     ? 'is logging'
+		.($channel->{LogURIPrefix}
+		  ? ' to '.$channel->{LogURIPrefix}
+		  : '')
+	     : 'is not logging',
 	 0
         );
-
-    Say( $self,
-	 $event->to,
-	 'log is '.$channel->{LogURIPrefix},
-	 0
-        ) if $channel->{LogURIPrefix} && $channel->{Listening};
 
     $channel->{MsgTime} = time;
   }
