@@ -992,6 +992,22 @@ sub on_kick {
   my $channel_name = ($event->args)[0];
   my $msg="$nick has kicked $whom from $channel_name";
   log_event($self, $event, time, $msg);
+  log_admin_event($self, $event, time, $msg);
+  my $channel = Channel_by_name($channel_name);
+  if ($channel) {
+    $channel->{Listening} = 0;
+    for (my $index=0; $index <= $#::Channels; $index++) {
+	if ($::Channels[$index] == $channel) {
+	    splice(@::Channels, $index, 1);
+	    last;
+	}
+    }
+  }
+  else {
+    my $msg = "Unknown channel from $nick on $channel_name";
+    log_admin_event($self, $event, time, $msg);
+    print $msg, "\n";
+  }
 }
 
 
