@@ -280,8 +280,9 @@ sub open_logs ($) {
 <head>
  <title>IRC log from $date</title>
 EOT
-      print $::Channel_HTMLLOG '<meta name="generator" content="$Id$" />\n';
+      print $::Channel_HTMLLOG '<meta name="generator" content="$Id$" />';
       print $::Channel_HTMLLOG <<"EOT";
+
  <style type="text/css">
   .IRC { font-family: sans-serif }
  </style>
