@@ -117,6 +117,9 @@ $::Channel_HTMLLOG=undef;
 # RDF log
 $::Channel_RDFLOG=undef;
 
+# Track midnight rollover
+$::Channel_hour=0;
+
 $::html_suffix="</dl>\n</body>\n</html>\n";
 $::html_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 
@@ -361,6 +364,18 @@ sub log_event ($$$;$) {
   my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
   my $time = sprintf("%02d:%02d:%02d", $tm[2], $tm[1], $tm[0]);
   my $date_time="$date $time";
+
+  # if we're using dated logs and we passed midnight, start new logs
+  if (! defined $::LogName && ($tm[2] < $::Channel_hour)) {
+      close $::Channel_TEXTLOG;
+      if ($::LogHTML) {
+	  close $::Channel_HTMLLOG;
+      }
+      close $::Channel_RDFLOG;
+      open_logs(($event->to)[0]);
+  }
+
+  $::Channel_hour = $tm[2];
 
   my $text_msg=$nick ? qq{<$nick> $msg} : $msg;
   print $::Channel_TEXTLOG "$time $text_msg\n";
