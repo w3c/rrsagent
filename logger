@@ -1414,6 +1414,8 @@ sub command_for_me ($$$$$) {
 
       $channel->{LogAccess} = $access;
 
+      my $ECHO = $::TestMode ? 'echo ' : '';
+
       if ($channel->{CVSFiles}) {
 	  # make sure these exist in Web space
 	  system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
@@ -1424,8 +1426,6 @@ sub command_for_me ($$$$$) {
 	     );
 	  return;
       }
-
-      my $ECHO = $::TestMode ? 'echo ' : '';
 
       for my $file (split(' ', $channel->{CVSFiles})) {
 	  system(("${ECHO}make URI=$::Log_URI$file $access &"));
