@@ -1124,7 +1124,7 @@ sub on_join {
 		.($channel->{LogURIPrefix}
 		  ? ' to '.$channel->{LogURIPrefix}
 		  : '')
-	     : 'is not logging',
+	     : 'is not logging';
     Say( $self,
 	 $event->to,
 	 $msg,
