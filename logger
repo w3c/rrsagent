@@ -550,11 +550,11 @@ sub on_public {
   # Private stuff
   return if $arg =~ /^\[off\]/i;
 
+  log_event($self, $event, time, $arg);
+
   if ($arg =~ /^$mynick,\s+(.*)$/) {
     command_for_me($self, $event, $to[0], $1, 0);
   }
-
-  log_event($self, $event, time, $arg);
 }
 
 
