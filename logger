@@ -412,7 +412,7 @@ EOT
   print $::Channel_RDFLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
   print $::Channel_RDFLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
   foreach my $uri (@uris) {
-    print $::Channel_RDFLOG qq{        <foaf:references rdf:resource="$uri"/>\n};
+    print $::Channel_RDFLOG qq{        <dc:relation rdf:resource="$uri"/>\n};
   }
   print $::Channel_RDFLOG qq{       </foaf:chatEvent>\n};
   print $::Channel_RDFLOG qq{      </rdf:li>\n};
