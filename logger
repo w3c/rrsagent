@@ -71,6 +71,7 @@ $::CVSCommitInterval = 120;	# seconds between CVS commits if -cvs specified
 $::LogActionMsgs=1;
 $::LogUserHosts=0;
 $::OffTopic=1;        # [off] at start of line is not logged
+$::HelpURI = undef;		# URI for detailed help
 
 @::LogTypes=qw(rdf html txt);
 @::DefaultLogTypes=qw(rdf txt);
@@ -191,6 +192,7 @@ Usage: $::program [option...] password channel-URI
   where option is one or more of:
    -admin <dir>     Directory for administrative logs
    -cvs             commit logs to CVS
+   -helpuri <URI>   specifies the name of a more detailed help document
    -html            write an XHTML log
    -idleparttime <s> part a channel if it has been quite for more than
                     <s> seconds.  If s==0 (the default), do not part.
@@ -220,6 +222,7 @@ EOT
 			'action!'   => \$::LogActionMsgs,
 			'admin=s'   => \$::AdminDir,
 			'cvs!'      => \$::Do_CVS,
+			'helpuri=s' => \$::HelpURI,
 			'html!'	    => \$do_log_types{'html'},
 			'idleparttime=s' => \$ReaperThreshold,
 			'initiallog!' => \$::LogInitial,
@@ -1381,7 +1384,13 @@ sub command_for_me ($$$$$) {
   }
 
   if($command=~ /^help/i) {
-    my(@help)=(
+    my(@help)=();
+    if ($::HelpURI) {
+	@help=(
+	       "More detailed help is available in $::HelpURI"
+        );
+    }
+    @help=(@help,
       "Some of the commands I know are:",
       " silence     - Stop logging (also: stop, off, ...)",
       " listen      - Start logging (also: start, on, ...)",
