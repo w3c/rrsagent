@@ -518,7 +518,8 @@ sub on_disconnect {
 
   return if $::Departing;
 
-  log_event($self, $event, time, "Attempting to reconnect");
+  # @@RRS: don't invent events
+  #log_event($self, $event, time, "Attempting to reconnect");
   exit 0;
 }
 
@@ -709,7 +710,8 @@ sub command_for_me ($$$$$) {
     $::Departing=1;
     $self->me($event->to, 'is departing');
     # Log who told me to quit
-    log_event($self, $event, time, "Logger told to quit");
+    # @@RRS don't invent events; better to wait for the 'is departing'
+    #log_event($self, $event, time, "Logger told to quit");
     $self->quit;
     exit 0;
   }
@@ -718,7 +720,8 @@ sub command_for_me ($$$$$) {
     if($::Channel_Listening) {
       $self->me($event->to, 'is not logging');
       # Log who turned me off BEFORE turning off logging
-      log_event($self, $event, time, "Logging turned off");
+      # @@RRS: don't invent events
+      #log_event($self, $event, time, "Logging turned off");
       $::Channel_Listening=0;
     } else {
       $self->me($event->to, 'is already not logging');
@@ -731,7 +734,8 @@ sub command_for_me ($$$$$) {
       $self->me($event->to, 'is logging');
       $::Channel_Listening=1;
       # Log who turned me on
-      log_event($self, $event, time, "Logging turned on");
+      # @@RRS: don't invent events
+      #log_event($self, $event, time, "Logging turned on");
     } else {
       $self->me($event->to, 'is already logging');
     }
@@ -846,7 +850,8 @@ sub command_for_me ($$$$$) {
 	print PIPE join("\n", reverse @results);
 	close(PIPE);
 	$output.=qq{ Mailed $count result$pl to $mail};
-	log_event($self, $event, time, "Search results from '$orig_search' mailed to $mail");
+	# @@RRS: don't invent events
+	#log_event($self, $event, time, "Search results from '$orig_search' mailed to $mail");
       } else {
 	$output.=qq{ Sorry, failed to mail results to $mail - internal error};
       }
