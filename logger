@@ -1478,17 +1478,19 @@ sub command_for_me ($$$$$) {
       $channel_name =~ s/^[#&]//;
       $docname =~ s/<channel>/$channel_name/;
       my $logdir = ($::Log_LocalPath ? $::Log_LocalPath : './');
+
+      my $msg = "I have made the request to generate $::Log_URI$docname $from_nick";
+      log_event($self, $event, time, $msg);
+
       system(("${ECHO}make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes &"));
       if (my $access = $channel->{LogAccess}) {
 	  system(("${ECHO}make URI=$::Log_URI$docname $access &"));
       }
 
-      my $msg = "I have made the request to generate $::Log_URI$docname $from_nick";
       Say( $self,
 	   $dest_nick,
 	   $msg
 	 );
-      log_event($self, $event, time, $msg);
 
       return;
   }
