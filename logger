@@ -275,13 +275,14 @@ sub open_logs ($) {
 	exit(0);
       }
 
+      my $escaped_chan = xml_escape($channel);
       print $::Channel_HTMLLOG <<"EOT";
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
- <title>IRC log of $channel on $date</title>
+ <title>IRC log of $escaped_chan on $date</title>
 EOT
       print $::Channel_HTMLLOG '<meta name="generator" content="$Id$" />';
       print $::Channel_HTMLLOG <<"EOT";
@@ -291,7 +292,7 @@ EOT
  </style>
 </head>
 <body>
-<h1>IRC log of $channel on $date</h1>
+<h1>IRC log of $escaped_chan on $date</h1>
 <p><em>Timestamps are in UTC.</em></p>
 <dl class="IRC">
 EOT
@@ -321,13 +322,14 @@ EOT
       exit(0);
     }
 
+    my $escaped_chan_uri = xml_escape($::Channel_URI);
     print $::Channel_RDFLOG <<"EOT";
 <?xml version="1.0" encoding="UTF-8"?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:dc="http://purl.org/dc/elements/1.1/"
          xmlns:wn="http://xmlns.com/wordnet/1.6/"
          xmlns:foaf="http://xmlns.com/foaf/0.1/">
-<foaf:ChatChannel rdf:about="$::Channel_URI">
+<foaf:ChatChannel rdf:about="$escaped_chan_uri">
   <foaf:chatEventList>
     <rdf:Seq>
 EOT
@@ -429,6 +431,7 @@ EOT
   print $::Channel_RDFLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
   print $::Channel_RDFLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
   foreach my $uri (@uris) {
+    $uri = xml_escape($uri);
     print $::Channel_RDFLOG qq{        <dc:relation rdf:resource="$uri"/>\n};
   }
   print $::Channel_RDFLOG qq{       </foaf:chatEvent>\n};
