@@ -1845,7 +1845,9 @@ sub watch_significant_events ($$$$$$) {
     return 0 if !$channel;
 
     # ACTION:
-    if ($msg =~ m/^\s*(?:ACTION\s*)([-:])\s*(.*)$/) {
+    if ($msg =~ m/^\s*(?:ACTION\s*|action\s*)(?:(\w+)\s*|)(:)\s*(.*)$/ ||
+	$msg =~ m/^\s*(?:ACTION\s*|action\s*)(-)\s*(.*)$/ ) {
+
 	$channel->{MsgTime} = time;
 	if ($channel->{IgnoreActions}) {
 	    Say( $self, $dest_nick, "I am ignoring action items, $from_nick", 1 )
@@ -1856,13 +1858,14 @@ sub watch_significant_events ($$$$$$) {
 	    Say( $self, $dest_nick, "I will not do that one-on-one, $from_nick", 1 );
 	    return 1;
 	}
-	my $what = $1;
-	my $add = $what eq ':';
+	my $who = $1 && $1 ne '-' ? $1 : undef;
+	my $what = $1 && $1 eq '-' ? '-' : $2;
+	my $add = $what && $what eq ':';
 	my $actionitems = $channel->{ActionItems};
 	if ($add) {
-	    my $topic = $2;
+	    my $topic = $3;
 	    my $action = {};
-	    $action->{Topic} = $topic;
+	    $action->{Topic} = $who ? $who.' to '.$topic : $topic;
 	    if ($channel->{Last_ID}) {
 		$action->{Pointer} = $channel->{LogURIPrefix}.'#'.$channel->{Last_ID}
 	    }
