@@ -59,6 +59,7 @@ $::Max_Max_Results=20;
 
 $::LogName=undef;
 $::LogActionMsgs=1;
+$::LogHTML=0;
 
 # ugly system dependencies
 # MSWin does not permit ":" in file path components
@@ -110,8 +111,14 @@ $::Channel_Listening=0;
 # Text log
 $::Channel_TEXTLOG=undef;
 
+# HTML log
+$::Channel_HTMLLOG=undef;
+
 # RDF log
 $::Channel_RDFLOG=undef;
+
+$::html_suffix="</dl>\n</body>\n</html>\n";
+$::html_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 
 $::rdf_suffix="    </rdf:Seq>\n  </foaf:chatEventList>\n</foaf:ChatChannel>\n</rdf:RDF>\n";
 $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
@@ -143,10 +150,11 @@ package main;
 
 sub main {
 
-  die "Usage: $::program [option...] password channel-URI channel-title log-dir log-URI\n  where option is one or more of:\n   -noaction		don't log /me messages\n   -log <logfile>	(\".txt\" and \".rdf\" will be appended)\n   -nick <nick>\n  and channel-URI is like irc://host[:port]/channel\n"
+  die "Usage: $::program [option...] password channel-URI channel-title log-dir log-URI\n  where option is one or more of:\n   -noaction		don't log /me messages\n   -html	write an XHTML log\n   -log <logfile>	(\".txt\", \".html\", and \".rdf\" will be appended)\n   -nick <nick>\n  and channel-URI is like irc://host[:port]/channel\n"
     unless GetOptions ('action!' => \$::LogActionMsgs,
-		       'nick=s'	 => \$::Nick,
+		       'html!'	 => \$::LogHTML,
 		       'log=s'	 => \$::LogName,
+		       'nick=s'	 => \$::Nick,
 		      ) && @ARGV==5;
 
   my($password,$uri_string,$channel_title, $log_root, $log_uri_string)=@ARGV;
@@ -194,7 +202,8 @@ sub open_logs ($) {
   my $uri=$::Channel_URI;
   my $channel=$uri->channel;
 
-  my $log_file=undef;
+  my $text_log_file=undef;
+  my $html_log_file=undef;
   my $rdf_log_file=undef;
 
   my @tm = gmtime;
@@ -202,7 +211,8 @@ sub open_logs ($) {
   my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
 
   if (defined $::LogName) {
-      $log_file = "$::LogName.txt";
+      $text_log_file = "$::LogName.txt";
+      $html_log_file = "$::LogName.html";
       $rdf_log_file = "$::LogName.rdf";
   } else {
       my $log_dir=log_dir_for_channel($uri);
@@ -214,17 +224,61 @@ sub open_logs ($) {
 	exit(0);
       }
 
-      $log_file = "$log_dir/$date.txt";
+      $text_log_file = "$log_dir/$date.txt";
+      $html_log_file = "$log_dir/$date.html";
       $rdf_log_file = "$log_dir/$date.rdf";
   } 
 
   # Failed!
-  if (!open($::Channel_TEXTLOG, ">>$log_file")) {
+  if (!open($::Channel_TEXTLOG, ">>$text_log_file")) {
     $self->privmsg("#$channel", "failed to open text log file, quitting - $!");
     exit(0);
   }
 
   $::Channel_TEXTLOG->autoflush(1);
+
+  # Failed!
+  if ($::LogHTML) {
+    if (!-r $html_log_file) {	# new file?
+      if (!open($::Channel_HTMLLOG, ">$html_log_file")) {
+	$self->privmsg("#$channel", "failed to open HTML log file, quitting - $!");
+	exit(0);
+      }
+
+      print $::Channel_HTMLLOG <<"EOT";
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+ <title>IRC log from $date</title>
+ <meta name="generator" content="\$Id\$" />
+ <style type="text/css">
+  .IRC { font-family: sans-serif }
+ </style>
+</head>
+<body>
+<dl class="IRC">
+EOT
+    print $::Channel_HTMLLOG $::html_suffix;
+    } else {
+	if (!open($::Channel_HTMLLOG, "+<$html_log_file")) {
+	    $self->privmsg("#$channel", "failed to append HTML log file, quitting - $!");
+	    exit(0);
+	}
+    }
+
+    # figure out whether stdio expands NEWLINE to CRLF
+    if (!defined $::html_suffix_length) {
+	seek($::Channel_HTMLLOG, 0, 2);	# find the end
+	my $curlen = tell($::Channel_HTMLLOG);
+	print $::Channel_HTMLLOG $::html_suffix;
+	$::html_suffix_length = tell($::Channel_HTMLLOG) - $curlen;
+	truncate ($::Channel_HTMLLOG, $curlen);
+    }
+
+    $::Channel_HTMLLOG->autoflush(1);
+  }
 
   if(!-r $rdf_log_file) {
     if (!open($::Channel_RDFLOG, ">$rdf_log_file")) {
@@ -242,6 +296,7 @@ sub open_logs ($) {
   <foaf:chatEventList>
     <rdf:Seq>
 EOT
+    print $::Channel_RDFLOG $::rdf_suffix;
   } else {
     if (!open($::Channel_RDFLOG, "+<$rdf_log_file")) {
       $self->privmsg("#$channel", "failed to append to RDF log file, quitting - $!");
@@ -280,10 +335,6 @@ sub log_event ($$$;$) {
   my $text_msg=$nick ? qq{<$nick> $msg} : $msg;
   print $::Channel_TEXTLOG "$time $text_msg\n";
 
-  # seek back
-  # @@ note that this assumes the existing data was NL-expanded identically
-  seek($::Channel_RDFLOG, -$::rdf_suffix_length, 2); # 2= SEEK_END
-
   # Make a legal XML id from the time
   my $ID="T$time"; $ID =~ s/:/-/g;
 
@@ -302,6 +353,19 @@ sub log_event ($$$;$) {
     $ID.="-1";
   }
   $::Channel_Last_ID=$ID;
+
+  if ($::LogHTML) {
+    # seek back
+    # @@ note that this assumes the existing data was NL-expanded identically
+    seek($::Channel_HTMLLOG, -$::html_suffix_length, 2); # 2= SEEK_END
+
+    print $::Channel_HTMLLOG qq{<dt ID="$ID">$time [$nick]</dt><dd>}.xml_escape($msg).qq{</dd>\n};
+    print $::Channel_HTMLLOG $::html_suffix;
+  }
+
+  # seek back
+  # @@ note that this assumes the existing data was NL-expanded identically
+  seek($::Channel_RDFLOG, -$::rdf_suffix_length, 2); # 2= SEEK_END
 
   print $::Channel_RDFLOG <<"EOT";
       <rdf:li>
