@@ -59,7 +59,7 @@ $::Nick='logger'; # OK this can be changed if clashes
 $::IRC_Name='Chat Logger';
 $::Max_Results=5;
 $::Max_Max_Results=20;
-$::Log_Path=undef;
+$::CVSCommitInterval = 120;	# seconds between CVS commits if -cvs specified
 
 $::LogActionMsgs=1;
 $::LogUserHosts=0;
@@ -108,8 +108,12 @@ $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 # IRC object
 $::IRC=undef;
 
-# root dir of logs
+# root dir of logs named channel/YYYY-MM-DD/
 $::Log_Root='';
+# alternate root dir of logs named DD-channel
+$::Log_Path=undef;
+$::Do_CVS=0;			# if logs are to be committed to CVS
+$::TestMode=0;			# if system() is to be no-op'd
 
 # place on the web this corresponds to
 $::Log_URI='';
@@ -166,6 +170,7 @@ sub main {
   my $usage=<<"EOT";
 Usage: $::program [option...] password channel-URI channel-title log-dir log-URI
   where option is one or more of:
+   -cvs             commit logs to CVS; -lpath must be specified
    -html	    write an XHTML log
    -notext	    Do not write a text log
    -log <logfile>   Write logs to logfile rather than the default
@@ -186,17 +191,21 @@ EOT
   print '$Id$', "\n";
 
   my $log_name=undef;
-  die $usage unless GetOptions ('action!' => \$::LogActionMsgs,
-		       'html!'	 => \$do_log_types{'html'},
-		       'text!'	 => \$do_log_types{'txt'},
-		       'log=s'	 => \$log_name,
-		       'lpath=s' => \$::Log_Path,
-		       'nick=s'	 => \$::Nick,
-		       'userhost!' => \$::LogUserHosts,
-		       'offtopic!' => \$::OffTopic,
+  die $usage unless GetOptions (
+			'action!' => \$::LogActionMsgs,
+			'cvs!'   => \$::Do_CVS,
+			'html!'	 => \$do_log_types{'html'},
+			'text!'	 => \$do_log_types{'txt'},
+			'log=s'	 => \$log_name,
+			'lpath=s' => \$::Log_Path,
+			'nick=s'	 => \$::Nick,
+			'userhost!' => \$::LogUserHosts,
+			'offtopic!' => \$::OffTopic,
+			'system!'   => \$::TestMode,
 		      ) && @ARGV==5;
 
   die "Only one of -log -lpath is permitted\n" if $log_name && $::Log_Path;
+  die "Must specify -lpath with -cvs\n" if $::Do_CVS && ! $::Log_Path;
 
   @::DefaultLogTypes=grep($do_log_types{$_}, @::LogTypes);
 
@@ -260,7 +269,9 @@ exit(0);
 # package Logger::Channel;
 
 @::Channels=();			# [] -> {CONN}, {NAME}, {URI}, {Topic},
-				# {Listening}, {MsgTime}
+				# {Listening}, {MsgTime}, {LogFilePrefix},
+				# {LogURIPrefix}, {CVSFiles}, {LogTypes}
+				# {CVSCommitScheduled}
 
 sub Channel_new ($$$) {
   my($uri,$title,$log_name)=@_;
@@ -453,12 +464,13 @@ sub Channel_open_logs ($) {
     $self->{LogURIPrefix}=$::Log_URI if $::Log_URI;
   } else {
     if ($::Log_Path) {
-      my $day = sprintf("%02d", $tm[4]);
+      my $day = sprintf("%02d", $tm[3]);
       my $name = $self->{NAME};
       $name =~ s/^[#&]//;
-      my $log_name = '/'.$day.'-'.$name;
-      $self->{LogFilePrefix}=$::Log_Path.$log_name;
-      $self->{LogURIPrefix}=$::Log_URI.$log_name if $::Log_URI;
+      my $log_name = $day.'-'.$name.'-irc';
+      $self->{LogBasename} = $log_name;
+      $self->{LogFilePrefix}=$::Log_Path.'/'.$log_name;
+      $self->{LogURIPrefix}=$::Log_URI.'/'.$log_name if $::Log_URI;
     }
     else {
       my $log_dir=Channel_get_log_dir($self);
@@ -479,7 +491,10 @@ sub Channel_open_logs ($) {
     $log_files{$type}=$self->{LogFilePrefix}.".".$type;
   }
 
+  my $cvs_files = '';
+
   if (grep($_ eq 'txt', @{$self->{LogTypes}})) {
+    $cvs_files .= $self->{LogBasename}.'.txt ' if $::Do_CVS;
     my $txt_log_fh=$self->{FH}->{txt}=new IO::File;
     my $txt_log_file=$log_files{txt};
     
@@ -494,6 +509,7 @@ sub Channel_open_logs ($) {
 
 
   if (grep($_ eq 'html', @{$self->{LogTypes}})) {
+    $cvs_files .= $self->{LogBasename}.'.html ' if $::Do_CVS;
     my $html_log_fh;
     my $html_log_file=$log_files{html};
 
@@ -552,6 +568,7 @@ EOT
 
 
   # Note RDF log type is not optional ;-)
+  $cvs_files .= $self->{LogBasename}.'.rdf ' if $::Do_CVS;
   my $rdf_log_fh;
   my $rdf_log_file=$log_files{rdf};
   if(!-r $rdf_log_file) {
@@ -594,6 +611,13 @@ EOT
   }
 
   $self->{FH}->{rdf}->autoflush(1);
+
+  if ($cvs_files) {
+      $self->{CVSFiles} = $cvs_files;
+      $self->{CVSCommitScheduled} = 0;
+      my $ECHO = $::TestMode ? 'echo ' : '';
+      system(("${ECHO}sh -c 'cd $::Log_Path; cvs add $cvs_files &"));
+  }
 }
 
 
@@ -616,6 +640,8 @@ sub log_event ($$$;$) {
   my $channel=Channel_by_name(($event->to)[0]);
 
   return if !$channel || !$channel->{Listening};
+
+  $channel->{MsgTime} = time;
 
   my @tm = gmtime($t);
   $tm[5]+= 1900; $tm[4]++;
@@ -699,6 +725,18 @@ EOT
   print $rdf_log_fh qq{       </foaf:chatEvent>\n};
   print $rdf_log_fh qq{      </rdf:li>\n};
   print $rdf_log_fh $::rdf_suffix;
+
+  if ($::Do_CVS && !$channel->{CVSCommitScheduled} && $channel->{CVSFiles}) {
+    my $ECHO = $::TestMode ? 'echo ' : '';
+    $self->schedule( $::CVSCommitInterval,
+		     sub
+		     {
+			 system(("${ECHO}sh -c 'cd $::Log_Path; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}.' &'));
+			 $channel->{CVSCommitScheduled} = 0;
+		     }
+		    );
+    $channel->{CVSCommitScheduled} = 1;
+  }
 }
 
 
@@ -980,8 +1018,6 @@ sub command_for_me ($$$$$) {
   my $dest_nick=($is_private ? $from_nick : $event->to);
   my $channel= $is_private ? undef # Channel_by_nick($from_nick)
       			   : Channel_by_name($channel_name);
-
-  $channel->{MsgTime} = time if $channel;
 
   $command=~s/^\s+//;
 
@@ -1488,6 +1524,7 @@ chat channels.  Call it with parameters above where
 
 and options are:
 
+  -cvs           commit logs to CVS; -lpath must be specified
   -html          Write an XHTML log as well as text and RDF.
   -log LOGFILE   Write logs to LOGFILE rather than the default
                  of CHANNEL/YYYY-MM-DD (".txt", ".html", and ".rdf"
