@@ -281,7 +281,7 @@ sub open_logs ($) {
     "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
- <title>IRC log from $date</title>
+ <title>IRC log of $channel on $date</title>
 EOT
       print $::Channel_HTMLLOG '<meta name="generator" content="$Id$" />';
       print $::Channel_HTMLLOG <<"EOT";
@@ -291,6 +291,8 @@ EOT
  </style>
 </head>
 <body>
+<h1>IRC log of $channel on $date</h1>
+<p><em>Timestamps are in UTC.</em></p>
 <dl class="IRC">
 EOT
     print $::Channel_HTMLLOG $::html_suffix;
