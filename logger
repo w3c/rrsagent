@@ -2163,15 +2163,17 @@ sub ExportActionList($)
 	    $docname =~ s/<channel>/$channel_name/;
 	}
 
-	my $ECHO = $::TestMode ? 'echo ' : '';
-	system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
+	if ($::Do_CVS) {
+	    my $ECHO = $::TestMode ? 'echo ' : '';
+	    system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
+
+	    if (my $access = $channel->{LogAccess}) {
+		system(("${ECHO}make URI=$::Log_URI$docname $access &'"));
+	    }
+	}
 
 	$channel->{ActionLog} = $docname;
 	$channel->{CVSFiles} = ($channel->{CVSFiles} || '').$docname.' ';
-
-	if (my $access = $channel->{LogAccess}) {
-	    system(("${ECHO}make URI=$::Log_URI$docname $access &'"));
-	}
     }
 
     unless (open( ACTIONS, ">".($::Log_LocalPath || './').$docname)) {
