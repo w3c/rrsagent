@@ -2093,6 +2093,10 @@ sub ExportActionList($)
 	return 0;
     }
 
+    my $progname = basename(__FILE__);
+    my $CVSRevision = '$Revision$'; # capture CVS info here
+    $CVSRevision =~ s/\$//g;	# drop '$' for W3C site repository checkin
+
     my $datetime = strftime( '%Y-%m-%dT%H:%MZ', gmtime );
     my $mtgRecord = xml_escape($channel->{LogURIPrefix} || $::Log_URI);
 
@@ -2105,6 +2109,7 @@ sub ExportActionList($)
 <rdf:Description rdf:about="">
   <dc:date>$datetime</dc:date>
   <dc:title>Action Items from $mtgRecord</dc:title>
+  <dc:creator>$::Nick $progname $CVSRevision</dc:creator>
 </rdf:Description>
 
 <rdf:Description rdf:about="$mtgRecord">
