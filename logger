@@ -1660,8 +1660,10 @@ sub URI2link ($@)
 }
 
 
-my %OutputQueue;		# {nick}->{pending}, ->@{queue}
+my %OutputQueue;		# {nick}->@{queue}
 my $SayScheduled = 0;
+my $OutputBytesPending = 0;	# total bytes we're expecting to write
+my $nextNickInQueue;		# round-robin the queue
 
 # Queued output to the irc server; this tries to avoid flooding the
 # server with output requests and the liklihood that the server will
@@ -1673,17 +1675,30 @@ my $SayScheduled = 0;
 #	   $addressed - (optional) boolean: 1 if privmsg, 0 if /me
 sub Say {
     my ($conn, $nick, $msg, $addressed) = @_;
+    my $to = ref($nick) eq "ARRAY" ? join('~', @{$nick}) : $nick;
+
     $addressed = 1 if not defined $addressed;
 
+    my @queues = keys %OutputQueue;
+
     # when queue is empty, output immediately but set timer
-    if ($OutputQueue{$nick}->{pending}++ == 0) {
+    # safe time to next output depends on the size of this output text;
+    # thanks to Hugo Haas for recommending the algorithm.
+
+    my $msgLength = length($msg) + ($addressed ? 9 : 18);
+    # 9 = length('PRIVMSG '),  18 = length('PRIVMSG :^AACTION ')
+
+    if (! $SayScheduled) {
 	if ($addressed) { $conn->privmsg($nick, $msg) }
 	else { $conn->me($nick, $msg) }
-	$conn->schedule(1, \&_doSay) if !$SayScheduled++;
+	my $interval =  1 + int $msgLength/80;
+	$conn->schedule($interval, \&_doSay);
+	$SayScheduled++;
     }
     else {
-	my $queue = \@{$OutputQueue{$nick}->{queue}};
+	my $queue = \@{$OutputQueue{$to}->{queue}};
 	push @$queue, [$conn, $nick, $msg, $addressed];
+	$OutputBytesPending += $msgLength;
     }
 }
 
@@ -1691,30 +1706,58 @@ sub _doSay {
     my ($conn) = @_;		# ignored
 
     my @nicks = keys %OutputQueue;
-    my $interval = 2*(1+$#nicks)-1; # seconds to wait 'till next output
+    my $nicksRemaining = $#nicks + 1;
 
     $SayScheduled = 0;		# assume we're done
 
-    for my $nick (@nicks) {
-	my $queue = \@{$OutputQueue{$nick}->{queue}};
-	if ( $#$queue >= 0) {
-	    my $conn = $$queue[0][0];
-	    my $nick = $$queue[0][1];
-	    my $msg = $$queue[0][2];
-	    my $addressed = $$queue[0][3];
-	    shift @$queue;
-	    if ($addressed) { $conn->privmsg($nick, $msg) }
-	    else { $conn->me($nick, $msg) }
-	}
+    return unless $nicksRemaining;
 
-	if ($#$queue >= 0) {
-	    # repeat until queue is drained
-	    $conn->schedule($interval, \&_doSay) if !$SayScheduled++;
-	}
-	else {
-	    delete $OutputQueue{$nick};
-	}
+    my $nickToOutput = $nextNickInQueue ? $nextNickInQueue : $nicks[0];
+    my $interval = 1;		# time to next safe output
+
+    my $queue = \@{$OutputQueue{$nickToOutput}->{queue}};
+    if ( $#$queue >= 0) {
+	my $conn = $$queue[0][0];
+	my $nick = $$queue[0][1];
+	my $msg = $$queue[0][2];
+	my $addressed = $$queue[0][3];
+	shift @$queue;
+
+	# safe time to next output depends on the size of this output text;
+	# thanks to Hugo Haas for recommending part of the algorithm.
+
+	my $msgLength = length($msg) + ($addressed ? 9 : 18);
+	# 9 = length('PRIVMSG '),  18 = length('PRIVMSG :^AACTION ')
+
+	# the more output we have to do, the more likely it is that a
+	# slow client will cause our output queue in the server to build
+	# Therefore we add more penalty as a function of the number of
+	# bytes we expect to output
+	$interval = 1 + int ($msgLength/($OutputBytesPending > 320 ? 60 : 100));
+
+	if ($addressed) { $conn->privmsg($nick, $msg) }
+	else { $conn->me($nick, $msg) }
+
+	$OutputBytesPending -= $msgLength;
     }
+
+    if ($#$queue < 0) {
+	delete $OutputQueue{$nickToOutput};
+	$nicksRemaining--;
+    }
+
+    if ($nicksRemaining) {
+	# repeat until queue is drained
+	$conn->schedule($interval, \&_doSay) if !$SayScheduled++;
+    }
+
+    my $next = 1;
+    for my $nick (@nicks) {
+	last if $nick eq $nickToOutput;
+	$next++;
+    }
+
+    $nextNickInQueue = $nicks[$next];
 }
 
 sub do_announce
@@ -1739,10 +1782,10 @@ sub log_pending_output($)
     my @queuedNicks = keys %OutputQueue;
     my $msg;
     if ($#queuedNicks == -1) {
-	$msg = 'no output is queued';
+	$msg = "no output is queued.  $OutputBytesPending bytes pending.";
     }
     else {
-	$msg = 'output is waiting for ';
+	$msg = "total of $OutputBytesPending bytes pending for ";
 	my $sep = '';
 	for my $nick (@queuedNicks) {
 	    my $Qentry = @{$OutputQueue{$nick}->{queue}}[0];
