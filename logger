@@ -1120,15 +1120,14 @@ sub on_join {
     $channel->{Listening} = 1; # Always join in listen mode
     $channel->{Listening} = $::LogInitial if $channel == $AdminChannel;
     my $msg = $channel->{Listening}
-	     ? 'is logging'
+	     ? 'logging'
 		.($channel->{LogURIPrefix}
 		  ? ' to '.$channel->{LogURIPrefix}
 		  : '')
-	     : 'is not logging';
+	     : 'not logging';
     Say( $self,
 	 $event->to,
-	 $msg,
-	 0
+	 $msg
         );
     log_event($self, $event, time, $msg);
 
