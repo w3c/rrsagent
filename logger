@@ -136,6 +136,11 @@ $::Default_Pattern = '<channel>/%Y-%m-%d';
 $::ActionLogName_Pattern=undef;
 $::Default_ActionPattern = '<channel>/%Y-%m-%d-actions';
 
+# pattern for formatted minutes
+# pattern is path & POXIX::strftime() pattern for formatted minutes.
+# '<channel>' will be replaced with the channel name, less leading '#' and '&'
+$::MinutesName_Pattern=undef;
+
 $::Do_CVS=0;			# if logs are to be committed to CVS
 $::TestMode=0;			# if system() is to be no-op'd
 
@@ -208,6 +213,8 @@ Usage: $::program [option...] password channel-URI
                     (\".txt\", \".html\", and \".rdf\" will be appended)
    -lroot <dir>     Root directory for logs; '/' is not automatically added
                     '<server>' will be replaced with host:port
+   -minutes <pattern> Name pattern for formatted minutes; uses strftime()
+		    substitutions plus the string '<channel>', no default
    -nick <nick>     set the nick
    -noaction        Do not log /me messages
    -noofftopic      Do not ignore lines starting with [off]
@@ -233,6 +240,7 @@ EOT
 			'initiallog!' => \$::LogInitial,
 			'log=s'	    => \$::LogName_Pattern,
 			'lroot=s'   => \$::Log_LocalPath,
+			'minutes=s' => \$::MinutesName_Pattern,
 			'nick=s'    => \$::Nick,
 			'offtopic!' => \$::OffTopic,
 			'system!'   => \$::TestMode,
@@ -1435,6 +1443,48 @@ sub command_for_me ($$$$$) {
       Say( $self,
 	   $dest_nick,
 	   "I have made the request, $from_nick"
+	 );
+
+      return;
+  }
+
+  # [please] create|format|make minutes
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|format|make)\s+minutes\s*$/i) {
+      unless ($::Do_CVS && $::MinutesName_Pattern) {
+	  Say( $self,
+	       $dest_nick,
+	       "I am not running that function here, $from_nick"
+	     );
+	  return;
+      }
+
+      my $ECHO = $::TestMode ? 'echo ' : '';
+
+      if ($channel->{CVSFiles}) {
+	  # make sure these exist in Web space
+	  system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
+      } else {
+	  Say( $self,
+	       $dest_nick,
+	       "The logs do not appear to be created yet, $from_nick"
+	     );
+	  return;
+      }
+
+      my $input = $channel->{LogBasename};
+      my $docname = strftime( $::MinutesName_Pattern, gmtime );
+      my $channel_name=$channel->{NAME};
+      $channel_name =~ s/^[#&]//;
+      $docname =~ s/<channel>/$channel_name/;
+      my $logdir = ($::Log_LocalPath ? $::Log_LocalPath : './');
+      system(("${ECHO}make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes &"));
+      if (my $access = $channel->{LogAccess}) {
+	  system(("${ECHO}make URI=$::Log_URI$docname $access &"));
+      }
+
+      Say( $self,
+	   $dest_nick,
+	   "I have made the request to generate $::Log_URI$docname, $from_nick"
 	 );
 
       return;
