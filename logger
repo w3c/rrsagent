@@ -2064,7 +2064,7 @@ sub watch_significant_events ($$$$$$) {
     }
 
     # action nnn = xxx
-    if ($msg =~ m/^\s*(?:ACTION|action)\s*([0-9]*)\s*=\s*(.*)$/) {
+    if ($msg =~ m/^\s*(?:action)\s*([0-9]*)\s*=\s*(.*)$/i) {
 	$channel->{MsgTime} = time;
 	if ($channel->{IgnoreActions}) {
 	    Say( $self, $dest_nick, "I am ignoring action items, $from_nick", 1 )
@@ -2123,7 +2123,7 @@ sub watch_significant_events ($$$$$$) {
     }
 
     # action?
-    if ($msg =~ m/^\s*(?:ACTIONs|actions)\s*\?$/) {
+    if ($msg =~ m/^\s*(?:actions)\s*\?$/i) {
 	DisplayActionItems($self, $event, $channel, $from_nick, $dest_nick, $addressed);
 	return 1;
     }
