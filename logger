@@ -1981,8 +1981,8 @@ sub watch_significant_events ($$$$$$) {
     return 0 if !$channel;
 
     # ACTION:
-    if ($msg =~ m/^\s*(?:ACTION\s*|action\s*)(?:(\w+)\s*|)(:)\s*(.*)$/ ||
-	$msg =~ m/^\s*(?:ACTION\s*|action\s*)(-)\s*(.*)$/ ) {
+    if ($msg =~ m/^\s*(?:action\s*)(?:(\w+)\s*|)(:)\s*(.*)$/i ||
+	$msg =~ m/^\s*(?:action\s*)(-)\s*(.*)$/i ) {
 
 	$channel->{MsgTime} = time;
 	if ($channel->{IgnoreActions}) {
