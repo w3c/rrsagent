@@ -9,7 +9,7 @@
 # http://purl.org/net/dajobe/
 #
 # enhancements to Dave's work
-# Copyright (c) 2001 Ralph Swick, Massachusetts Institute of Technology
+# Copyright (c) 2001, 2002 Ralph Swick, Massachusetts Institute of Technology
 # http://www.w3.org/People/all#swick
 #
 #   This program is free software; you can redistribute it and/or
@@ -284,7 +284,7 @@ exit(0);
 @::Channels=();			# [] -> {CONN}, {NAME}, {URI}, {Topic}, {Title}
 				# {Listening}, {MsgTime}, {LogFilePrefix},
 				# {LogURIPrefix}, {CVSFiles}, {LogTypes}
-				# {CVSCommitScheduled}
+				# {CVSCommitScheduled}, {LogsOpen}
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
 
@@ -316,6 +316,8 @@ sub Channel_new ($) {
 
   # True if logging
   $self->{Listening}=0;
+
+  $self->{LogsOpen} = 0;
 
   # Track midnight rollover
   $self->{hour}= undef;
@@ -353,7 +355,7 @@ sub Channel_join($) {
 
   my $channel_name=$uri->channel;
 
-  $self->{Listening}=1;
+  $self->{Listening}=$::LogInitial;
 
   my $user_name=substr($channel_name,0,8)."-logger";
 
@@ -369,7 +371,7 @@ sub Channel_join($) {
 
   $self->{CONN}=$conn;
   
-  Channel_open_logs($self);
+  Channel_open_logs($self) if $::LogInitial;
 
   # Install handlers
   # On 'end of MOTD' event, join ilrt channel
@@ -485,8 +487,6 @@ sub Channel_get_log_lines ($) {
 
 sub Channel_open_logs ($) {
   my $self=shift;
-
-  return if ! $::LogInitial && $self == $AdminChannel;
 
   my $conn=$self->{CONN};
   my $channel_name=$self->{NAME};
@@ -653,6 +653,7 @@ EOT
   }
 
   $self->{FH}->{rdf}->autoflush(1);
+  $self->{LogsOpen} = 1;
 
   if ($cvs_files) {
       $self->{CVSFiles} = $cvs_files;
@@ -665,11 +666,12 @@ EOT
 
 sub Channel_close_logs ($) {
   my $self=shift;
-  return if ! $::LogInitial && $self == $AdminChannel;
+  return unless $self->{LogsOpen};
   for my $type (@{$self->{LogTypes}}) {
     $self->{FH}->{$type}->close;
     $self->{FH}->{$type}=undef;
   }
+  $self->{LogsOpen} = 0;
 }
 
 
@@ -684,9 +686,9 @@ sub log_event ($$$;$) {
 
   return if !$channel || !$channel->{Listening};
 
-  $channel->{MsgTime} = time;
+  Channel_open_logs($channel) unless $channel->{LogsOpen};
 
-  return if ! $::LogInitial && $channel == $AdminChannel;
+  $channel->{MsgTime} = time;
 
   my @tm = gmtime($t);
   $tm[5]+= 1900; $tm[4]++;
@@ -703,7 +705,6 @@ sub log_event ($$$;$) {
   }
 
   $channel->{hour} = $hour;
-
 
   if (grep($_ eq 'txt', @{$channel->{LogTypes}})) {
     my $txt_msg=$nick ? qq{<$nick> $msg} : $msg;
@@ -818,8 +819,6 @@ sub on_connect {
   log_admin_event($self, $event, time, "Connected to server");
 
   $self->join($channel_name);
-  $channel->{Listening}=1;
-  Say( $self, $channel_name, 'is logging', 0 );
 }
 
 
@@ -1034,14 +1033,23 @@ sub on_join {
       $channel = &Channel_new($uri);
       $channel->{CONN} = $self;
       $channel->{MsgTime} = time;
+      $channel->{Listening} = 1; # Always join in listen mode
+      # %%% could this be executed if we depart the AdminChannel and rejoin?
+      $channel->{Listening} = $::LogInitial if $channel == $AdminChannel;
       Channel_open_logs($channel);
   }
 
   log_event($self, $event, $t, $m);
 
   if($user_nick eq $::Nick) {
-    $channel->{Listening}=1;	# Always join in listen mode
     log_admin_event($self, $event, $t, $m);
+    $channel->{Listening} = 1; # Always join in listen mode
+    $channel->{Listening} = $::LogInitial if $channel == $AdminChannel;
+    Say( $self,
+	 $event->to,
+	 $channel->{Listening} ? 'is logging' : 'is not logging',
+	 0
+        );
     $channel->{MsgTime} = time;
   }
 
@@ -1089,6 +1097,7 @@ sub command_for_me ($$$$$) {
       $::Departing=1;
       for my $channel (@::Channels) {
 	  $self->me($channel->{NAME}, 'is departing');
+	  sleep(1);
       }
       # Log who told me to quit
       log_admin_event($self, $event, time, "$::Nick told to quit");
