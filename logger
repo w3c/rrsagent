@@ -853,10 +853,17 @@ sub command_for_me ($$$$$) {
       "    e.g. grep foo, grep 5 bar, grep -i things [case independent]",
       "    append |mail EMAIL-ADDRESS to email results instead of printing",
       "I respond to '$::Nick, command' in public and '/msg $::Nick command' in private",
-      "Logging Policy: All public output is logged if I am listening except",
-      "for any lines starting [off].   All commands to me are logged.",
+      "Logging Policy: All public output is logged if I am listening except for"
+    );
+    if (! $::LogActionMsgs) {
+      @help=(@help,
+         "\"action\" messages (messages sent with the '/me' command) and"
+     );
+    }
+    @help=(@help,
+      "any lines starting [off].   All commands to me are logged.",
       "My public output is logged but these lines are not searchable.",
-      "The public logs are at $::Log_URI",
+      "The logs are at $::Log_URI",
     );
     my $do_sleep=0;
     for my $output (@help) {
