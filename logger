@@ -2136,7 +2136,7 @@ EOT
     if ($#{$actionitems} >= 0) {
 	for my $action (@{$actionitems}) {
 	    print ACTIONS
-'      <li><m:ActionItem rdf:about="#',$action->{id},'">
+'      <rdf:li><m:ActionItem rdf:about="#',$action->{id},'">
         <dc:title>',xml_escape($action->{Topic}),'</dc:title>';
 	    print ACTIONS '
         <m:status>',$action->{Status},'</m:status>' if $action->{Status};
@@ -2144,7 +2144,7 @@ EOT
         <dc:source rdf:resource="',xml_escape($action->{Pointer}),'"/>'
 		if $action->{Pointer};
 	    print ACTIONS '
-        </m:ActionItem></li>
+        </m:ActionItem></rdf:li>
 ';
 	}
     }
