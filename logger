@@ -1760,6 +1760,7 @@ sub _doSay {
 	    $OutputBytesPending -= $msgLength;
 	}
 	else { # it's an action to perform, now that channel output is drained
+	    shift @$queue;
 	    $conn->();
 	}
     }
