@@ -618,7 +618,7 @@ EOT
       $self->{CVSFiles} = $cvs_files;
       $self->{CVSCommitScheduled} = 0;
       my $ECHO = $::TestMode ? 'echo ' : '';
-      system(("${ECHO}sh -c 'cd $::Log_Path; cvs add $cvs_files &"));
+      system(("${ECHO}sh -c 'cd $::Log_Path; cvs add $cvs_files &'"));
   }
 }
 
@@ -736,7 +736,7 @@ EOT
     $self->schedule( $::CVSCommitInterval,
 		     sub
 		     {
-			 system(("${ECHO}sh -c 'cd $::Log_Path; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}.' &'));
+			 system(("${ECHO}sh -c 'cd $::Log_Path; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
 			 $channel->{CVSCommitScheduled} = 0;
 		     }
 		    );
