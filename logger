@@ -994,9 +994,8 @@ sub on_join {
       Channel_open_logs($channel);
   }
 
-  $channel->{Listening}=1;
-
   if($user_nick eq $::Nick) {
+    $channel->{Listening}=1;	# Always join in listen mode
     log_admin_event($self, $event, $t, $m);
     $channel->{MsgTime} = time;
   }
@@ -1092,8 +1091,8 @@ sub command_for_me ($$$$$) {
       my ($where, $idle);
       for my $channel (@::Channels) {
 	  if ($channel->{Listening}) {
-	      $where .= ' '.$channel->{NAME};;
-	      $idle .= ' '.$channel->{NAME}.'='
+	      $where .= ' '.$channel->{NAME};
+	      $idle .= ' '.$channel->{NAME}.':'
 		    .int ((time - $channel->{MsgTime} + 30)/60);
 	  }
       }
