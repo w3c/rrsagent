@@ -2083,7 +2083,7 @@ sub ReapIdleChannels($)
 }
 
 
-sub DisplayActionItems($$$$$:$)
+sub DisplayActionItems($$$$$$)
 {
     my ($self, $event, $channel, $from_nick, $dest_nick, $addressed) = @_;
     $addressed = 1 if not defined $addressed;
