@@ -8,6 +8,9 @@
 # (C) Copyright 2000-2001 Dave Beckett, ILRT, University of Bristol
 # http://purl.org/net/dajobe/
 #
+# with modifications from Ralph Swick
+# http://www.w3.org/People/all#swick
+#
 #   This program is free software; you can redistribute it and/or
 #   modify it under the terms of the GNU General Public License
 #   as published by the Free Software Foundation; either version 2
@@ -26,8 +29,6 @@
 #
 # For documentation run perldoc on this file 'perldoc logger'
 #
-# Modifications from Dave's original made by
-# Ralph Swick http://www.w3.org/People/all#swick
 
 use strict;
 
@@ -60,6 +61,7 @@ $::Max_Max_Results=20;
 $::LogName=undef;
 $::LogActionMsgs=1;
 $::LogHTML=0;
+$::LogUserHosts=0;
 
 # ugly system dependencies
 # MSWin does not permit ":" in file path components
@@ -89,6 +91,11 @@ $::Departing=0;
 # True if connecting (don't log server notices)
 $::Connecting=0;
 
+# Administrative messages log
+$::Admin_LOG=undef;
+
+# Process ID
+$::PID_File=undef;
 
 # Global Variables that should be per-Channel
 # title
@@ -179,12 +186,22 @@ package main;
 
 
 sub main {
+  my $usage=<<"EOT";
+Usage: $::program [option...] password channel-URI channel-title log-dir log-URI
+  where option is one or more of:
+   -noaction	    don't log /me messages
+   -html	    write an XHTML log
+   -log <logfile>   (\".txt\", \".html\", and \".rdf\" will be appended)
+   -nick <nick>     set the nick
+   -userhosts       log user\@host in /join messages
+  and channel-URI is like irc://host[:port]/channel
+EOT
 
-  die "Usage: $::program [option...] password channel-URI channel-title log-dir log-URI\n  where option is one or more of:\n   -noaction		don't log /me messages\n   -html	write an XHTML log\n   -log <logfile>	(\".txt\", \".html\", and \".rdf\" will be appended)\n   -nick <nick>\n  and channel-URI is like irc://host[:port]/channel\n"
-    unless GetOptions ('action!' => \$::LogActionMsgs,
+  die $usage unless GetOptions ('action!' => \$::LogActionMsgs,
 		       'html!'	 => \$::LogHTML,
 		       'log=s'	 => \$::LogName,
 		       'nick=s'	 => \$::Nick,
+		       'userhost!' => \$::LogUserHosts,
 		      ) && @ARGV==5;
 
   my($password,$uri_string,$channel_title, $log_root, $log_uri_string)=@ARGV;
@@ -205,12 +222,20 @@ sub main {
   $::Departing=0;
   $::Connecting=1;
 
+  # Open the administrative log file
+  my $admin_log_file=$::Log_Root.'/admin.log';
+
+  $::Admin_LOG=new IO::File;
+  $::Admin_LOG->open(">>$admin_log_file") 
+    or die "$::program Failed to append to admin log file $admin_log_file - $!\n";
+  $::Admin_LOG->autoflush(1);
+
   umask 022;
 
   # FIXME - pid_file should not have channel in it, when logger
   # handles multiple channels
-  my $pid_file=$::Log_Root.'/logger-'.$uri->channel.'.pid';
-  open(PID,">$pid_file");
+  $::PID_File=$::Log_Root.'/logger-'.$uri->channel.'.pid';
+  open(PID,">$::PID_File");
   print PID "$$\n";
   close(PID);
 
@@ -251,6 +276,7 @@ sub open_logs ($) {
       # Failed!
       if (! -d $log_dir) {
 	$self->privmsg("#$channel", "failed to create chat log dir, quitting");
+	unlink $::PID_File;
 	exit(0);
       }
 
@@ -259,19 +285,21 @@ sub open_logs ($) {
       $rdf_log_file = "$log_dir/$date.rdf";
   } 
 
-  # Failed!
-  if (!open($::Channel_TEXTLOG, ">>$text_log_file")) {
+  $::Channel_TEXTLOG=new IO::File;
+  if (!$::Channel_TEXTLOG->open(">>$text_log_file")) {
     $self->privmsg("#$channel", "failed to open text log file, quitting - $!");
+    unlink $::PID_File;
     exit(0);
   }
 
   $::Channel_TEXTLOG->autoflush(1);
 
-  # Failed!
   if ($::LogHTML) {
     if (!-r $html_log_file) {	# new file?
-      if (!open($::Channel_HTMLLOG, ">$html_log_file")) {
+      $::Channel_HTMLLOG=new IO::File;
+      if (!$::Channel_HTMLLOG->open(">$html_log_file")) {
 	$self->privmsg("#$channel", "failed to open HTML log file, quitting - $!");
+	unlink $::PID_File;
 	exit(0);
       }
 
@@ -285,7 +313,7 @@ sub open_logs ($) {
  <title>IRC log of $escaped_chan on $date</title>
 EOT
       my $progID = '$Id$';
-      $progID =~ s/\$/&#36;/;	# Hide the CVS tag from CVS in the output
+      $progID =~ s/\$/\&#36;/;	# Hide the CVS tag from CVS in the output
       print $::Channel_HTMLLOG '<meta name="generator" content="'.$progID.'" />';
       print $::Channel_HTMLLOG <<"EOT";
 
@@ -298,12 +326,14 @@ EOT
 <p><em>Timestamps are in UTC.</em></p>
 <dl class="IRC">
 EOT
-    print $::Channel_HTMLLOG $::html_suffix;
+      print $::Channel_HTMLLOG $::html_suffix;
     } else {
-	if (!open($::Channel_HTMLLOG, "+<$html_log_file")) {
-	    $self->privmsg("#$channel", "failed to append HTML log file, quitting - $!");
-	    exit(0);
-	}
+      $::Channel_HTMLLOG=new IO::File;
+      if (!$::Channel_HTMLLOG->open("+<$html_log_file")) {
+        $self->privmsg("#$channel", "failed to append HTML log file, quitting - $!");
+        unlink $::PID_File;
+        exit(0);
+      }
     }
 
     # figure out whether stdio expands NEWLINE to CRLF
@@ -319,8 +349,10 @@ EOT
   }
 
   if(!-r $rdf_log_file) {
-    if (!open($::Channel_RDFLOG, ">$rdf_log_file")) {
+    $::Channel_RDFLOG=new IO::File;
+    if (!$::Channel_RDFLOG->open(">$rdf_log_file")) {
       $self->privmsg("#$channel", "failed to open RDF log file, quitting - $!");
+      unlink $::PID_File;
       exit(0);
     }
 
@@ -337,8 +369,10 @@ EOT
 EOT
     print $::Channel_RDFLOG $::rdf_suffix;
   } else {
-    if (!open($::Channel_RDFLOG, "+<$rdf_log_file")) {
+    $::Channel_RDFLOG=new IO::File;
+    if (!$::Channel_RDFLOG->open("+<$rdf_log_file")) {
       $self->privmsg("#$channel", "failed to append to RDF log file, quitting - $!");
+      unlink $::PID_File;
       exit(0);
     }
   }
@@ -373,11 +407,14 @@ sub log_event ($$$;$) {
 
   # if we're using dated logs and we passed midnight, start new logs
   if (! defined $::LogName && ($tm[2] < $::Channel_hour)) {
-      close $::Channel_TEXTLOG;
+      $::Channel_TEXTLOG->close;
+      $::Channel_TEXTLOG=undef;
       if ($::LogHTML) {
-	  close $::Channel_HTMLLOG;
+	  $::Channel_HTMLLOG->close;
+	  $::Channel_HTMLLOG=undef;
       }
-      close $::Channel_RDFLOG;
+      $::Channel_RDFLOG->close;
+      $::Channel_RDFLOG=undef;
       open_logs(($event->to)[0]);
   }
 
@@ -448,6 +485,20 @@ sub log_dir_for_channel ($) {
   my $channel=$uri->channel; $channel=~ s/\W//g;
 
   return $::Log_Root.'/'.$uri->host.$::PortSep.$uri->port.'/'.$channel.'/';
+}
+
+
+sub log_admin_event ($$$;$) {
+  my($self, $event, $t, $msg)=@_;
+  my $nick=$event->nick;
+
+  my @tm = gmtime($t);
+  $tm[5]+= 1900; $tm[4]++;
+  my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
+  my $time = sprintf("%02d:%02d:%02d", $tm[2], $tm[1], $tm[0]);
+
+  my $text_msg=$nick ? qq{<$nick> $msg} : $msg;
+  print $::Admin_LOG "${date}Z${time} $text_msg\n";
 }
 
 
@@ -540,8 +591,8 @@ sub on_disconnect {
 
   return if $::Departing;
 
-  # @@RRS: don't invent events
-  #log_event($self, $event, time, "Attempting to reconnect");
+  log_admin_event($self, $event, time, "Attempting to reconnect");
+  unlink $::PID_File;
   exit 0;
 }
 
@@ -661,8 +712,10 @@ sub on_join {
   my ($self, $event) = @_;
   my ($channel) = ($event->to)[0];
   my $user_nick=$event->nick;
-  
-  log_event($self, $event, time, sprintf("%s (%s) has joined $channel", $user_nick, $event->userhost));
+
+  my $format=$::LogUserHosts ? "%s (%s) has joined $channel" :
+                               "%s has joined $channel";
+  log_event($self, $event, time, sprintf($format, $user_nick, $event->userhost));
 
   return if !$::Do_Welcome;
 
@@ -732,9 +785,9 @@ sub command_for_me ($$$$$) {
     $::Departing=1;
     $self->me($event->to, 'is departing');
     # Log who told me to quit
-    # @@RRS don't invent events; better to wait for the 'is departing'
-    #log_event($self, $event, time, "Logger told to quit");
+    log_admin_event($self, $event, time, "Logger told to quit");
     $self->quit;
+    unlink $::PID_File;
     exit 0;
   }
   
@@ -742,8 +795,7 @@ sub command_for_me ($$$$$) {
     if($::Channel_Listening) {
       $self->me($event->to, 'is not logging');
       # Log who turned me off BEFORE turning off logging
-      # @@RRS: don't invent events
-      #log_event($self, $event, time, "Logging turned off");
+      log_admin_event($self, $event, time, "Logging turned off");
       $::Channel_Listening=0;
     } else {
       $self->me($event->to, 'is already not logging');
@@ -756,8 +808,7 @@ sub command_for_me ($$$$$) {
       $self->me($event->to, 'is logging');
       $::Channel_Listening=1;
       # Log who turned me on
-      # @@RRS: don't invent events
-      #log_event($self, $event, time, "Logging turned on");
+      log_admin_event($self, $event, time, "Logging turned on");
     } else {
       $self->me($event->to, 'is already logging');
     }
@@ -765,11 +816,14 @@ sub command_for_me ($$$$$) {
   }
 
   if($command=~ /^(?:sync)/i) {
-    close $::Channel_TEXTLOG;
+    $::Channel_TEXTLOG->close;
+    $::Channel_TEXTLOG=undef;
     if ($::LogHTML) {
-	close $::Channel_HTMLLOG;
+	$::Channel_HTMLLOG->close;
+	$::Channel_HTMLLOG=undef;
     }
-    close $::Channel_RDFLOG;
+    $::Channel_RDFLOG->close;
+    $::Channel_RDFLOG=undef;
     open_logs(($event->to)[0]);
     return;
   }
@@ -882,8 +936,7 @@ sub command_for_me ($$$$$) {
 	print PIPE join("\n", reverse @results);
 	close(PIPE);
 	$output.=qq{ Mailed $count result$pl to $mail};
-	# @@RRS: don't invent events
-	#log_event($self, $event, time, "Search results from '$orig_search' mailed to $mail");
+	log_admin_event($self, $event, time, "Search results from '$orig_search' mailed to $mail");
       } else {
 	$output.=qq{ Sorry, failed to mail results to $mail - internal error};
       }
@@ -1062,7 +1115,7 @@ logger - RDF IRC Chat Logger
 
 =head1 SYNOPSIS
 
-  logger PASSWORD CHANNEL-URI CHANNEL-TITLE LOG-DIR LOG-URI > logger.log
+  logger [options...] PASSWORD CHANNEL-URI CHANNEL-TITLE LOG-DIR LOG-URI > logger.log
 
 An irc logger bot that automatically generated logs for various IRC
 chat channels.  Call it with parameters above where
@@ -1072,6 +1125,16 @@ chat channels.  Call it with parameters above where
   CHANNEL-TITLE A title to use in welcome messages
   LOG-DIR       Root directory to start writing logs
   LOG-URI       URI of where the logs appear on the web
+
+and options are:
+
+  -noaction      Don't log /me messages
+  -html          Write an XHTML log as well as text and RDF.
+  -log LOGFILE   Write logs to LOGFILE rather than the default
+                 of CHANNEL/YYYY-MM-DD (".txt", ".html", and ".rdf"
+                 will be appended)
+  -nick NICK     Use IRC nick NICK
+  -userhosts     Log user@host from /join messages
 
 =head1 DESCRIPTION
 
