@@ -1119,16 +1119,18 @@ sub on_join {
     log_admin_event($self, $event, $t, $m);
     $channel->{Listening} = 1; # Always join in listen mode
     $channel->{Listening} = $::LogInitial if $channel == $AdminChannel;
-    Say( $self,
-	 $event->to,
-	 $channel->{Listening}
+    my $msg = $channel->{Listening}
 	     ? 'is logging'
 		.($channel->{LogURIPrefix}
 		  ? ' to '.$channel->{LogURIPrefix}
 		  : '')
 	     : 'is not logging',
+    Say( $self,
+	 $event->to,
+	 $msg,
 	 0
         );
+    log_event($self, $event, time, $msg, $nick);
 
     $channel->{MsgTime} = time;
   }
