@@ -311,7 +311,7 @@ exit(0);
 @::Channels=();			# [] -> {CONN}, {NAME}, {URI}, {Topic}, {Title}
 				# {Listening}, {MsgTime}, {LogFilePrefix},
 				# {LogURIPrefix}, {CVSFiles}, {LogTypes}
-				# {CVSCommitScheduled}, {LogsOpen}
+				# {CVSCommitScheduled}, {LogsOpen}, {LogAccess}
 				# {ActionItems} {IgnoreActions}
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
@@ -1380,13 +1380,60 @@ sub command_for_me ($$$$$) {
   }
 
   # [please] join <channel> [<password>]
-  if ($command =~ m/^(?:please\s+|pls\s+)?join\s+(\S*)\s*(\S*)\s*$/) {
+  if ($command =~ m/^(?:please\s+|pls\s+)?join\s+(\S*)\s*(\S*)\s*$/i) {
       my $channel_name = $1;
       my $channel_key = $2;
       print "join $channel_name $channel_key from $from_nick\n";
       log_admin_event($self, $event, time, "Join request for $channel_name from $from_nick");
       $self->join($channel_name, $channel_key);
       return 1;
+  }
+
+  # [please] make log[s] {team,member,world}[-{access,visible}]
+  # [please] set log[s] {team,member,world}[-{access,visible}]
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)\s+logs?\s+(\S+)\s*$/i) {
+      my $access = $1;
+
+      unless ($::Do_CVS) {
+	  Say( $self,
+	       $dest_nick,
+	       "I am not running that function here, $from_nick"
+	     );
+	  return;
+      }
+
+      if ($access =~ m/^((?:team|member|world))(?:-access|-visible|)$/i) {
+	  $access = lc($1).'-access';
+      } else {
+	  Say( $self,
+	       $dest_nick,
+	       "$from_nick, access must be one of team-access, member-access, or world-access"
+	     );
+	  return;
+      }
+
+      $channel->{LogAccess} = $access;
+
+      unless ($channel->{CVSFiles}) {
+	  Say( $self,
+	       $dest_nick,
+	       "The logs do not appear to be created yet, $from_nick"
+	     );
+	  return;
+      }
+
+      my $ECHO = $::TestMode ? 'echo ' : '';
+
+      for my $file (split(' ', $channel->{CVSFiles})) {
+	  system(("${ECHO}make URI=$::Log_URI$file $access &'"));
+      }
+
+      Say( $self,
+	   $dest_nick,
+	   "I have made the request, $from_nick"
+	 );
+
+      return;
   }
 
   # version
@@ -2116,7 +2163,11 @@ sub ExportActionList($)
 	system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
 
 	$channel->{ActionLog} = $docname;
-	$channel->{CVSFiles} = ($channel->{CVSFiles} || '').$docname;
+	$channel->{CVSFiles} = ($channel->{CVSFiles} || '').$docname.' ';
+
+	if (my $access = $channel->{LogAccess}) {
+	    system(("${ECHO}make URI=$::Log_URI$docname $access &'"));
+	}
     }
 
     unless (open( ACTIONS, ">".($::Log_LocalPath || './').$docname)) {
