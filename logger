@@ -177,7 +177,7 @@ $::CVSkeywords = '\$'.'Date\$|\$'.'Date:.*\$|\$'.'Revision\$|\$'.'Revision:.*\$|
 
 sub main {
   my $usage=<<"EOT";
-Usage: $::program [option...] password channel-URI channel-title
+Usage: $::program [option...] password channel-URI
   where option is one or more of:
    -admin <dir>	    Directory for administrative logs
    -cvs             commit logs to CVS
@@ -213,11 +213,11 @@ EOT
 			'text!'	    => \$do_log_types{'txt'},
 			'uroot=s'     => \$::Log_URI,
 			'userhost!' => \$::LogUserHosts,
-		      ) && @ARGV==3;
+		      ) && @ARGV==2;
 
   @::DefaultLogTypes=grep($do_log_types{$_}, @::LogTypes);
 
-  my($password,$uri_string,$channel_title)=@ARGV;
+  my($password,$uri_string)=@ARGV;
 
   my $uri;
   eval '$uri=new URI $uri_string';
@@ -258,7 +258,7 @@ EOT
 
   $::IRC = new Net::IRC;
 
-  my $channel=&Channel_new($uri, $channel_title);
+  my $channel=&Channel_new($uri);
   $AdminChannel = $channel;
   Channel_join($channel);
 
@@ -277,7 +277,7 @@ exit(0);
 # Methods on 'logger Channel' object
 # package Logger::Channel;
 
-@::Channels=();			# [] -> {CONN}, {NAME}, {URI}, {Topic},
+@::Channels=();			# [] -> {CONN}, {NAME}, {URI}, {Topic}, {Title}
 				# {Listening}, {MsgTime}, {LogFilePrefix},
 				# {LogURIPrefix}, {CVSFiles}, {LogTypes}
 				# {CVSCommitScheduled}
@@ -285,15 +285,20 @@ exit(0);
 				# 	      kept for possible future use
 
 sub Channel_new ($$) {
-  my($uri,$title)=@_;
+  my($uri)=@_;
 
   my $self={};
 
-  # Channel title
-  $self->{Title}=$title;
-
   # irc:: URI
   $self->{URI}=$uri;
+
+  my $channel_name = $uri->channel;
+  $channel_name ='#' . $channel_name unless $channel_name =~ m/[\#&]/;
+
+  $self->{NAME} = $channel_name;
+
+  # Channel title
+  $self->{Title}=$channel_name.' channel';
 
   # a file prefix to log to (i.e. write log_name.rdf etc.) or undef
   # to use default schema
@@ -795,15 +800,7 @@ sub on_connect {
   
   my $channel=Channel_by_conn($self);
 
-  my $channel_name;
-
-  if ($channel->{URI}->channel =~ m/[\#&]/) {
-      $channel_name = $channel->{URI}->channel; # don't add a prefix if one was given
-  } else {
-      $channel_name ='#' . $channel->{URI}->channel; # else assume a public channel
-  }
-
-  $channel->{NAME} = $channel_name;
+  my $channel_name = $channel->{NAME};
 
   log_admin_event($self, $event, time, "Connected to server");
 
@@ -1010,7 +1007,6 @@ sub on_join {
       my $uri_string = 'irc://'.$t_uri->host.':'.$t_uri->port.'/'.$channel_name;
       my $uri = new URI $uri_string;
       $channel = &Channel_new($uri, '');
-      $channel->{NAME} = $channel_name;
       $channel->{CONN} = $self;
       $channel->{MsgTime} = time;
       Channel_open_logs($channel);
@@ -1538,14 +1534,13 @@ logger - RDF IRC Chat Logger
 
 =head1 SYNOPSIS
 
-  logger [options...] PASSWORD CHANNEL-URI CHANNEL-TITLE LOG-DIR LOG-URI > logger.log
+  logger [options...] PASSWORD CHANNEL-URI > logger.log
 
 An irc logger bot that automatically generated logs for various IRC
 chat channels.  Call it with parameters above where
 
   PASSWORD      Administrator password for some commands
   CHANNEL-URI   IRC channel URI like irc://host[:port]/channel
-  CHANNEL-TITLE A title to use in welcome messages
   LOG-DIR       Root directory to start writing logs
   LOG-URI       URI of where the logs appear on the web
 
