@@ -412,7 +412,7 @@ sub log_event ($$$;$) {
     # @@ note that this assumes the existing data was NL-expanded identically
     seek($::Channel_HTMLLOG, -$::html_suffix_length, 2); # 2= SEEK_END
 
-    my $escapedMsg = xml_escape($msg);
+    my $escapedMsg = cvs_escape($msg);
     if ($#uris > -1) {
 	$escapedMsg = URI2link($escapedMsg, @uris);
     }
@@ -430,7 +430,7 @@ sub log_event ($$$;$) {
        <foaf:chatEvent rdf:ID="$ID">
         <dc:date>${date}T${time}Z</dc:date>
 EOT
-  print $::Channel_RDFLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
+  print $::Channel_RDFLOG qq{        <dc:description>}.cvs_escape($msg).qq{</dc:description>\n};
   print $::Channel_RDFLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
   foreach my $uri (@uris) {
     $uri = xml_escape($uri);
@@ -904,6 +904,21 @@ sub command_for_me ($$$$$) {
 
   $self->privmsg($dest_nick, $output);
   log_event($self, $event, time, $output) unless $is_private;
+}
+
+# Escape any special characters that are significant to XML
+# Then hide any CVS/RCS tags from future invocations of CVS/RCS
+sub cvs_escape ($) {
+  my ($text) = @_;
+
+  $text = xml_escape($text);
+
+  return $text if ($text !~ /\$/); # nothing to hide
+
+  if ($text =~ /\$Date\$|\$Date$|\$Revision\$|\$Revision$|\$Author\$|\$Author$|\$Id\$|\$Id$|\$Log\$|\$Log:.*\$|\$Header\$|\$Header$|\$Locker\$|\$Locker$|\$Name\$|\$Name$|\$RCSfile\$|\$RCSfile$|\$Source\$|\$Source$|\$State\$|\$State$/o) {
+      $text =~ s/\$/&#36;/g;
+  }
+  return $text;
 }
 
 sub xml_escape ($) {
