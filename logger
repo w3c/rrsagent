@@ -424,7 +424,7 @@ sub Channel_by_conn($) {
 sub Channel_by_name($) {
   my $name=shift;
   for my $channel (@::Channels) {
-    return $channel if $channel->{NAME} eq $name;
+    return $channel if $channel->{NAME} =~ m/^\Q$name\E$/i;
   }
   return undef;
 }
