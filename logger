@@ -1827,7 +1827,7 @@ sub log_pending_output($)
 sub watch_significant_events ($$$$$$) {
     my($self, $event, $channel_name, $msg, $is_private, $addressed)=@_;
     my $from_nick=$event->nick;
-    my $channel= $is_private ? Channel_by_nick($from_nick)
+    my $channel= $is_private ? undef # Channel_by_nick($from_nick)
 			     : Channel_by_name($channel_name);
 
     my $dest_nick=($is_private ? $from_nick : join('',$event->to));
