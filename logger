@@ -1414,7 +1414,10 @@ sub command_for_me ($$$$$) {
 
       $channel->{LogAccess} = $access;
 
-      unless ($channel->{CVSFiles}) {
+      if ($channel->{CVSFiles}) {
+	  # make sure these exist in Web space
+	  system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
+      } else {
 	  Say( $self,
 	       $dest_nick,
 	       "The logs do not appear to be created yet, $from_nick"
