@@ -764,6 +764,16 @@ sub command_for_me ($$$$$) {
     return;
   }
 
+  if($command=~ /^(?:sync)/i) {
+    close $::Channel_TEXTLOG;
+    if ($::LogHTML) {
+	close $::Channel_HTMLLOG;
+    }
+    close $::Channel_RDFLOG;
+    open_logs(($event->to)[0]);
+    return;
+  }
+
   if(!$::Channel_Listening) {
     $output="I'm not logging. ";
   } else {
