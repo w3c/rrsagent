@@ -1425,7 +1425,7 @@ sub command_for_me ($$$$$) {
       my $ECHO = $::TestMode ? 'echo ' : '';
 
       for my $file (split(' ', $channel->{CVSFiles})) {
-	  system(("${ECHO}make URI=$::Log_URI$file $access &'"));
+	  system(("${ECHO}make URI=$::Log_URI$file $access &"));
       }
 
       Say( $self,
