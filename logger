@@ -2117,7 +2117,7 @@ EOT
 	for my $action (@{$actionitems}) {
 	    print ACTIONS
 '      <li><m:ActionItem rdf:about="#',$action->{id},'">
-        <dc:description>',xml_escape($action->{Topic}),'</dc:description>';
+        <dc:title>',xml_escape($action->{Topic}),'</dc:title>';
 	    print ACTIONS '
         <m:status>',$action->{Status},'</m:status>' if $action->{Status};
 	    print ACTIONS '
