@@ -908,14 +908,18 @@ sub command_for_me ($$$$$) {
 
 # Escape any special characters that are significant to XML
 # Then hide any CVS/RCS tags from future invocations of CVS/RCS
+
+# this hideous concatenation only serves to hide this source line from CVS
+my $CVSkeywords = '\$'.'Date\$|\$'.'Date:.*\$|\$'.'Revision\$|\$'.'Revision:.*\$|\$'.'Author\$|\$'.'Author:.*\$|\$'.'Id\$|\$'.'Id:.*\$|\$'.'Log\$|\$'.'Log:.*\$|\$'.'Header\$|\$'.'Header:.*\$|\$'.'Locker\$|\$'.'Locker:.*\$|\$'.'Name\$|\$'.'Name:.*\$|\$'.'RCSfile\$|\$'.'RCSfile:.*\$|\$'.'Source\$|\$'.'Source:.*\$|\$'.'State\$|\$'.'State:.*\$';
+
 sub cvs_escape ($) {
   my ($text) = @_;
 
   $text = xml_escape($text);
 
-  return $text if ($text !~ /\$/); # nothing to hide
+  return $text if ($text !~ /\$/o); # nothing to hide
 
-  if ($text =~ /\$Date\$|\$Date$|\$Revision\$|\$Revision$|\$Author\$|\$Author$|\$Id\$|\$Id$|\$Log\$|\$Log:.*\$|\$Header\$|\$Header$|\$Locker\$|\$Locker$|\$Name\$|\$Name$|\$RCSfile\$|\$RCSfile$|\$Source\$|\$Source$|\$State\$|\$State$/o) {
+  if ($text =~ /$CVSkeywords/o) {
       $text =~ s/\$/&#36;/g;
   }
   return $text;
