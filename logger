@@ -1184,6 +1184,7 @@ sub command_for_me ($$$$$) {
       "The commands I know are:",
       " silence     - Stop logging (also: stop, off, ...)",
       " listen      - Start logging (also: start, on, ...)",
+      " excuse us   - Leave the channel (also: bye)",
       " grep [-i] [first-last|max] <perl regex>  - Search the logs",
       "   e.g. grep foo, grep 5 bar, grep -i things [case independent]",
       "   append |mail EMAIL-ADDRESS to email results instead of printing",
