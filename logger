@@ -315,6 +315,7 @@ exit(0);
 				# {ActionItems} {IgnoreActions}
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
+				# {ActionLog}
 
 				# ActionItems[] -> {Topic}, {Pointer}, {id}
 
@@ -2053,30 +2054,38 @@ sub DisplayActionItems($$$$$)
 sub ExportActionList($)
 {
     my ($channel) = @_;
-
     my $docname;
-    if ($::ActionLogName_Pattern) {
-	$docname = strftime( $::ActionLogName_Pattern, gmtime );
-    }
-    else {
-	$docname = strftime( $::Default_ActionPattern, gmtime );
-	my $log_dir=Channel_get_log_dir($channel);
-	
-	print "making $log_dir\n";
-	mkpath([$log_dir], 0, 0755) if ! -d $log_dir;
-	# Failed!
-	if (! -d $log_dir) {
-	    log_admin_event($channel, undef, time, "Failed to create chat log dir $log_dir - $!");
-	    unlink $::PID_File;
-	    return;
+
+    unless ($docname = $channel->{ActionLog}) {
+	if ($::ActionLogName_Pattern) {
+	    $docname = strftime( $::ActionLogName_Pattern, gmtime );
 	}
-    }
+	else {
+	    $docname = strftime( $::Default_ActionPattern, gmtime );
+	    my $log_dir=Channel_get_log_dir($channel);
 
-    {
-	my $channel_name = $channel->{NAME};
-	$channel_name =~ s/^[#&]//;
+	    print "making $log_dir\n";
+	    mkpath([$log_dir], 0, 0755) if ! -d $log_dir;
+	    # Failed!
+	    if (! -d $log_dir) {
+		log_admin_event($channel, undef, time, "Failed to create chat log dir $log_dir - $!");
+		unlink $::PID_File;
+		return;
+	    }
+	}
 
-	$docname =~ s/<channel>/$channel_name/;
+	{
+	    my $channel_name = $channel->{NAME};
+	    $channel_name =~ s/^[#&]//;
+
+	    $docname =~ s/<channel>/$channel_name/;
+	}
+
+	my $ECHO = $::TestMode ? 'echo ' : '';
+	system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
+
+	$channel->{ActionLog} = $docname;
+	$channel->{CVSFiles} = ($channel->{CVSFiles} || '').$docname;
     }
 
     unless (open( ACTIONS, ">".($::Log_LocalPath || './').$docname)) {
@@ -2095,6 +2104,7 @@ sub ExportActionList($)
 
 <rdf:Description rdf:about="">
   <dc:date>$datetime</dc:date>
+  <dc:title>Action Items from $mtgRecord</dc:title>
 </rdf:Description>
 
 <rdf:Description rdf:about="$mtgRecord">
