@@ -2102,6 +2102,7 @@ sub ExportActionList($)
 
     print ACTIONS <<"EOT";
 <?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/css" href="http://www.w3.org/2002/07/actionlist-style.css" ?>
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
          xmlns:dc="http://purl.org/dc/elements/1.1/"
          xmlns:m="http://www.w3.org/2002/07/meeting#">
