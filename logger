@@ -1389,6 +1389,12 @@ sub command_for_me ($$$$$) {
       return 1;
   }
 
+  # version
+  if($command =~ /^version\?\s*$/i) {
+      Say( $self, $dest_nick, '$Revision$ of $Date$' );
+      return;
+  }
+
   if ($channel) {
       if(!$channel->{Listening}) {
 	$output="I'm not logging. ";
