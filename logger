@@ -199,6 +199,7 @@ sub log_event ($$$;$) {
   my $rdf_log_file = "$log_dir/$date.rdf";
 
   my $rdf_suffix="    </rdf:Seq>\n  </foaf:chatEventList>\n</foaf:ChatChannel>\n</rdf:RDF>\n";
+  my $rdf_suffix_epsilon=4;	# count of new-lines in previous string
 
 
   # Failed!
@@ -234,7 +235,7 @@ EOT
     }
 
     # seek back
-    seek(RLOG, -length($rdf_suffix), 2) # 2= SEEK_END
+    seek(RLOG, -length($rdf_suffix)-$rdf_suffix_epsilon, 2) # 2= SEEK_END
   }
 
   # Make a legal XML id from the time
@@ -258,12 +259,14 @@ EOT
 
 
   print RLOG <<"EOT";
-      <rdf:li rdf:ID="$ID"><foaf:chatEvent>
+      <rdf:li>
+       <foaf:chatEvent rdf:ID="$ID">
         <dc:date>${date}T${time}Z</dc:date>
 EOT
   print RLOG qq{        <dc:description>}.xml_escape($msg).qq{</dc:description>\n};
   print RLOG qq{        <dc:creator><wn:Person foaf:nick="$nick"/></dc:creator>\n} if $nick;
-  print RLOG qq{      </foaf:chatEvent></rdf:li>\n};
+  print RLOG qq{       </foaf:chatEvent>\n};
+  print RLOG qq{      </rdf:li>\n};
   print RLOG $rdf_suffix;
 
   close(RLOG);
@@ -275,7 +278,7 @@ sub log_dir_for_channel ($) {
 
   my $channel=$uri->channel; $channel=~ s/\W//g;
 
-  return $::Log_Root.'/'.$uri->host.':'.$uri->port.'/'.$channel.'/';
+  return $::Log_Root.'/'.$uri->host.'.'.$uri->port.'/'.$channel.'/';
 }
 
 
@@ -318,7 +321,13 @@ sub get_logs ($$) {
 sub on_connect {
   my ($self, $event) = @_;
   
-  my $channel='#' . $::Channel_URI->channel;
+  my $channel;
+
+  if ($::Channel_URI->channel =~ m/[\#&]/) {
+      $channel = $::Channel_URI->channel; # don't add a prefix if one was given
+  } else {
+      $channel ='#' . $::Channel_URI->channel; # else assume a public channel
+  }
 
   $self->join($channel);
   $::Channel_Listening=1;
