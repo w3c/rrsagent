@@ -70,6 +70,10 @@ $::OffTopic=1;        # [off] at start of line is not logged
 @::LogTypes=qw(rdf html txt);
 @::DefaultLogTypes=qw(rdf txt);
 
+# ugly system dependencies
+# MSWin does not permit ":" in file path components
+$::PortSep = $^O eq "MSWin32" ? "/" : ":";
+
 $::html_suffix="</dl>\n</body>\n</html>\n";
 $::html_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 
@@ -190,11 +194,13 @@ Usage: $::program [option...] password channel-URI
                     default is '<channel>/%Y-%m-%d'
                     (\".txt\", \".html\", and \".rdf\" will be appended)
    -lroot <dir>	    Root directory for logs; '/' is not automatically added
+                    '<server>' will be replaced with host:port
    -nick <nick>     set the nick
    -noaction	    Do not log /me messages
    -noofftopic      Do not ignore lines starting with [off]
    -userhosts       Record user\@host in /join messages
    -uroot <URI>	    URI prefix for logs; '/' is not automatically added
+                    '<server>' will be replaced with host:port
 
   and channel-URI is like irc://host[:port]/channel
 EOT
@@ -227,6 +233,11 @@ EOT
   eval '$uri=new URI $uri_string';
   die "$::program: '$uri_string' does not look like an IRC URI\n" 
     if ($@ || !$uri);
+
+  # replace '<server>' in $::Log_LocalPath and $::Log_URI
+  my $server = $uri->host.$::PortSep.$uri->port;
+  $::Log_LocalPath =~ s/<server>/$server/;
+  $::Log_URI =~ s/<server>/$server/;
 
   if ($::Log_LocalPath) {
     die "$::program: log dir $::Log_LocalPath does not exist\n"
@@ -1610,12 +1621,14 @@ and options are:
                  default is <channel>/%Y-%m-%d
                  (\".txt\", \".html\", and \".rdf\" will be appended)
   -lroot PATH    Write logs to PATH/DD-channel.{html,rdf,txt}
+                 '<server>' will be replaced with host:port
   -nick NICK     Use IRC nick NICK
 
   -noaction      Do not log /me messages
   -noofftopic    Do not ignore lines starting with [off]
   -userhosts     Record user@host from /join messages
   -uroot URI     URI prefix for logs; '/' is not automatically added
+                 '<server>' will be replaced with host:port
 
 =head1 DESCRIPTION
 
