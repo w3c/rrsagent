@@ -703,6 +703,11 @@ sub Channel_close_logs ($) {
     $self->{FH}->{$type}=undef;
   }
   $self->{LogsOpen} = 0;
+
+  if ($::Do_CVS && $self->{CVSFiles}) {
+    my $ECHO = $::TestMode ? 'echo ' : '';
+    system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$self->{CVSFiles}." &'"));
+  };
 }
 
 
