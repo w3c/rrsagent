@@ -2137,6 +2137,7 @@ sub ExportActionList($)
 {
     my ($channel) = @_;
     my $docname;
+    my $newlyCreated = undef;
 
     unless ($docname = $channel->{ActionLog}) {
 	if ($::ActionLogName_Pattern) {
@@ -2163,15 +2164,7 @@ sub ExportActionList($)
 	    $docname =~ s/<channel>/$channel_name/;
 	}
 
-	if ($::Do_CVS) {
-	    my $ECHO = $::TestMode ? 'echo ' : '';
-	    system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
-
-	    if (my $access = $channel->{LogAccess}) {
-		system(("${ECHO}make URI=$::Log_URI$docname $access &"));
-	    }
-	}
-
+	$newlyCreated = 1;
 	$channel->{ActionLog} = $docname;
 	$channel->{CVSFiles} = ($channel->{CVSFiles} || '').$docname.' ';
     }
@@ -2179,6 +2172,15 @@ sub ExportActionList($)
     unless (open( ACTIONS, ">".($::Log_LocalPath || './').$docname)) {
 	print 'Failed to open '.($::Log_LocalPath || './').$docname."\n";
 	return 0;
+    }
+
+    if ($newlyCreated && $::Do_CVS) {
+	my $ECHO = $::TestMode ? 'echo ' : '';
+	system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
+
+	if (my $access = $channel->{LogAccess}) {
+	    system(("${ECHO}make URI=$::Log_URI$docname $access &"));
+	}
     }
 
     my $progname = basename(__FILE__);
