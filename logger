@@ -39,6 +39,7 @@ use File::Basename;
 use Sys::Hostname;
 use Getopt::Long;
 use IO::Handle;
+use POSIX qw(strftime);
 
 # From CPAN
 use URI;
@@ -108,15 +109,23 @@ $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 # IRC object
 $::IRC=undef;
 
-# root dir of logs named channel/YYYY-MM-DD/
-$::Log_Root='';
-# alternate root dir of logs named DD-channel
-$::Log_Path=undef;
+# directory for admin logs; '/' will be added.  Also default log dir
+$::AdminDir='.';
+
+# root dir of logs; prepended to LogName_Pattern
+$::Log_LocalPath=undef;		# include '/' if you need it
+
+# path & POXIX::strftime() pattern for logs.
+# '<channel>' will be replaced with the channel name, less leading '#' and '&'
+# '.html', '.rdf', '.txt' will be appended
+$::LogName_Pattern=undef;
+$::Default_Pattern = '<channel>/%Y-%m-%d';
+
 $::Do_CVS=0;			# if logs are to be committed to CVS
 $::TestMode=0;			# if system() is to be no-op'd
 
-# place on the web this corresponds to
-$::Log_URI='';
+# place on the web this corresponds to; prepended to LogName_Pattern
+$::Log_URI='';			# include '/' if you need one
 
 # System password
 $::Password='';
@@ -168,20 +177,21 @@ $::CVSkeywords = '\$'.'Date\$|\$'.'Date:.*\$|\$'.'Revision\$|\$'.'Revision:.*\$|
 
 sub main {
   my $usage=<<"EOT";
-Usage: $::program [option...] password channel-URI channel-title log-dir log-URI
+Usage: $::program [option...] password channel-URI channel-title
   where option is one or more of:
-   -cvs             commit logs to CVS; -lpath must be specified
+   -admin <dir>	    Directory for administrative logs
+   -cvs             commit logs to CVS
    -html	    write an XHTML log
    -notext	    Do not write a text log
-   -log <logfile>   Write logs to logfile rather than the default
-                    of channel/YYYY-MM-DD
+   -log <pattern>   Name pattern for log files; uses strftime() substitutions
+                    default is <channel>/YYYY-MM-DD
                     (\".txt\", \".html\", and \".rdf\" will be appended)
-   -lpath <path>    Write logs to <path>/DD-channel.{html,rdf,txt}
+   -lroot <dir>	    Root directory for logs; '/' is not automatically added
    -nick <nick>     set the nick
-
    -noaction	    Do not log /me messages
    -noofftopic      Do not ignore lines starting with [off]
    -userhosts       Record user\@host in /join messages
+   -uroot <URI>	    URI prefix for logs; '/' is not automatically added
 
   and channel-URI is like irc://host[:port]/channel
 EOT
@@ -190,47 +200,46 @@ EOT
 
   print '$Id$', "\n";
 
-  my $log_name=undef;
   die $usage unless GetOptions (
-			'action!' => \$::LogActionMsgs,
-			'cvs!'   => \$::Do_CVS,
-			'html!'	 => \$do_log_types{'html'},
-			'text!'	 => \$do_log_types{'txt'},
-			'log=s'	 => \$log_name,
-			'lpath=s' => \$::Log_Path,
-			'nick=s'	 => \$::Nick,
-			'userhost!' => \$::LogUserHosts,
+			'action!'   => \$::LogActionMsgs,
+			'admin=s'   => \$::AdminDir,
+			'cvs!'      => \$::Do_CVS,
+			'html!'	    => \$do_log_types{'html'},
+			'log=s'	    => \$::LogName_Pattern,
+			'lroot=s'   => \$::Log_LocalPath,
+			'nick=s'    => \$::Nick,
 			'offtopic!' => \$::OffTopic,
 			'system!'   => \$::TestMode,
-		      ) && @ARGV==5;
-
-  die "Only one of -log -lpath is permitted\n" if $log_name && $::Log_Path;
-  die "Must specify -lpath with -cvs\n" if $::Do_CVS && ! $::Log_Path;
+			'text!'	    => \$do_log_types{'txt'},
+			'uroot=s'     => \$::Log_URI,
+			'userhost!' => \$::LogUserHosts,
+		      ) && @ARGV==3;
 
   @::DefaultLogTypes=grep($do_log_types{$_}, @::LogTypes);
 
-  my($password,$uri_string,$channel_title, $log_root, $log_uri_string)=@ARGV;
+  my($password,$uri_string,$channel_title)=@ARGV;
 
   my $uri;
   eval '$uri=new URI $uri_string';
   die "$::program: '$uri_string' does not look like an IRC URI\n" 
     if ($@ || !$uri);
 
+  if ($::Log_LocalPath) {
+    die "$::program: log dir $::Log_LocalPath does not exist\n"
+	  unless -d $::Log_LocalPath;
+  }
 
-  die "$::program: log dir $log_root does not exist\n" unless -d $log_root;
-  die "$::program: log path $::Log_Path does not exist\n"
-	if $::Log_Path && ! -d $::Log_Path;
+  die "$::program: admin dir $::AdminDir does not exist\n"
+	unless -d $::AdminDir;
 
   # Set globals
   $::Password=$password;
-  $::Log_Root=$log_root;
-  $::Log_URI=$log_uri_string;
   $::Do_Welcome=0;
   $::Departing=0;
   $::Connecting=1;
 
   # Open the administrative log file
-  my $admin_log_file=$::Log_Root.'/'.$::Nick.'.log';
+  my $admin_log_file=$::AdminDir.'/'.$::Nick.'.log';
 
   $::Admin_LOG=new IO::File;
   $::Admin_LOG->open(">>$admin_log_file") 
@@ -242,14 +251,14 @@ EOT
   # FIXME - pid_file should not have channel in it, when logger
   # handles multiple channels
   my $channel_name=$uri->channel;
-  $::PID_File=$::Log_Root.'/'.$::Nick.'-'.$channel_name.'.pid';
+  $::PID_File=$::AdminDir.'/'.$::Nick.'-'.$channel_name.'.pid';
   open(PID,">$::PID_File");
   print PID "$$\n";
   close(PID);
 
   $::IRC = new Net::IRC;
 
-  my $channel=&Channel_new($uri, $channel_title, $log_name);
+  my $channel=&Channel_new($uri, $channel_title);
   $AdminChannel = $channel;
   Channel_join($channel);
 
@@ -272,9 +281,11 @@ exit(0);
 				# {Listening}, {MsgTime}, {LogFilePrefix},
 				# {LogURIPrefix}, {CVSFiles}, {LogTypes}
 				# {CVSCommitScheduled}
+				# {LogName} - unused as of 2002-02-18 but
+				# 	      kept for possible future use
 
-sub Channel_new ($$$) {
-  my($uri,$title,$log_name)=@_;
+sub Channel_new ($$) {
+  my($uri,$title)=@_;
 
   my $self={};
 
@@ -286,7 +297,7 @@ sub Channel_new ($$$) {
 
   # a file prefix to log to (i.e. write log_name.rdf etc.) or undef
   # to use default schema
-  $self->{LogName}=$log_name;
+  $self->{LogName}=undef;
 
   # topic of channel
   $self->{Topic}='';
@@ -391,14 +402,14 @@ sub Channel_by_name($) {
 sub Channel_get_log_dir ($) {
   my $self=shift;
 
-  return $::Log_Path.'/' if $::Log_Path;
+  return $::Log_LocalPath if $::Log_LocalPath;
 
   # %%% need something special for $self->{LogFilePrefix} ?
 
 #  my $uri=$self->{URI}; # %%% might be undef
   my $channel_name=$self->{NAME}; $channel_name=~ s/\W//g;
 
-  return $::Log_Root.'/'.$channel_name.'/';
+  return './'.$channel_name.'/';
 }
 
 
@@ -414,9 +425,15 @@ sub Channel_get_log_lines ($) {
 
     return () if !opendir(DIR, $log_dir);
 
+    my $name = $self->{NAME};
+
     for my $file (reverse sort readdir(DIR)) {
-      next unless $file =~ /^(\d\d\d\d-\d\d-\d\d).txt/;
+      next unless $file =~ /.*$name.*\.txt/;
+#     $file =~ m/^(\d\d\d\d-\d\d-\d\d)/;
+      # %%% need to generalize this date-extraction from $::LogName_Pattern
+      $file =~ m/^([-\d]*)/;	# any number of leading hyphen-separated digits
       my $date=$1;
+      $date =~ s/-$//;		# trim a trailing hyphen if one exists
       push(@file_dates, ["$log_dir/$file", $date]);
     }
     closedir(DIR);
@@ -465,30 +482,35 @@ sub Channel_open_logs ($) {
     $self->{LogFilePrefix}=$log_name;
     $self->{LogURIPrefix}=$::Log_URI if $::Log_URI;
   } else {
-    if ($::Log_Path) {
-      my $day = sprintf("%02d", $tm[3]);
-      my $name = $self->{NAME};
-      $name =~ s/^[#&]//;
-      my $log_name = $day.'-'.$name.'-irc';
-      $self->{LogBasename} = $log_name;
-      $self->{LogFilePrefix}=$::Log_Path.'/'.$log_name;
-      $self->{LogURIPrefix}=$::Log_URI.'/'.$log_name if $::Log_URI;
+    my $logname;
+    if ($::LogName_Pattern) {
+      $log_name = strftime( $::LogName_Pattern, gmtime );
     }
     else {
+      $log_name = strftime( $::Default_Pattern, gmtime );
       my $log_dir=Channel_get_log_dir($self);
 
+      print "making $log_dir\n";
       mkpath([$log_dir], 0, 0755) if ! -d $log_dir;
       # Failed!
       if (! -d $log_dir) {
 	log_admin_event($self, undef, time, "Failed to create chat log dir $log_dir - $!");
 	unlink $::PID_File;
-	exit(0);
+	return;
       }
-      $self->{LogFilePrefix}=$log_dir."/".$date;
-      $self->{LogURIPrefix}=$::Log_URI.$date if $::Log_URI;
     }
+    my $name = $self->{NAME};
+    $name =~ s/^[#&]//;
+    $log_name =~ s/<channel>/$name/;
+
+    $self->{LogBasename} = $log_name;
+    $self->{LogFilePrefix} =
+	  ($::Log_LocalPath ? $::Log_LocalPath : './').$log_name;
+    $self->{LogURIPrefix} = $::Log_URI.$log_name if $::Log_URI;
   }
     
+  print 'Opening ',$self->{LogFilePrefix},"\n";
+
   for my $type (@{$self->{LogTypes}}) {
     $log_files{$type}=$self->{LogFilePrefix}.".".$type;
   }
@@ -503,7 +525,7 @@ sub Channel_open_logs ($) {
     if (!$self->{FH}->{txt}->open(">>$txt_log_file")) {
       log_admin_event($self, undef, time, "Failed to create text log file $txt_log_file - $!");
       unlink $::PID_File;
-      exit(0);
+      return;
     }
 
     $txt_log_fh->autoflush(1);
@@ -520,7 +542,7 @@ sub Channel_open_logs ($) {
       if (!$html_log_fh->open(">$html_log_file")) {
 	log_admin_event($self, undef, time, "Failed to create HTML log file $html_log_file - $!");
 	unlink $::PID_File;
-	exit(0);
+	return;
       }
 
       my $escaped_chan = xml_escape($channel_name);
@@ -552,7 +574,7 @@ EOT
       if (!$html_log_fh->open("+<$html_log_file")) {
 	log_admin_event($self, undef, time, "Failed to append to HTML log file $html_log_file - $!");
         unlink $::PID_File;
-        exit(0);
+        return;
       }
     }
 
@@ -579,7 +601,7 @@ EOT
     if (!$rdf_log_fh->open(">$rdf_log_file")) {
       log_admin_event($self, undef, time, "Failed to create RDF log file $rdf_log_file - $!");
       unlink $::PID_File;
-      exit(0);
+      return;
     }
 
     my $escaped_chan_uri = xml_escape($self->{URI});
@@ -599,7 +621,7 @@ EOT
     if (!$rdf_log_fh->open("+<$rdf_log_file")) {
       log_admin_event($self, undef, time, "Failed to append to RDF log file $rdf_log_file - $!");
       unlink $::PID_File;
-      exit(0);
+      return;
     }
   }
 
@@ -987,7 +1009,7 @@ sub on_join {
       my $t_uri = $AdminChannel->{URI};
       my $uri_string = 'irc://'.$t_uri->host.':'.$t_uri->port.'/'.$channel_name;
       my $uri = new URI $uri_string;
-      $channel = &Channel_new($uri, '', '');
+      $channel = &Channel_new($uri, '');
       $channel->{NAME} = $channel_name;
       $channel->{CONN} = $self;
       $channel->{MsgTime} = time;
