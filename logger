@@ -54,6 +54,10 @@ $::IRC_Name='Chat Logger';
 $::Max_Results=5;
 $::Max_Max_Results=20;
 
+# ugly system dependencies
+# MSWin does not permit ":" in file path components
+$::PortSep = $^O eq "MSWin32" ? "/" : ":";
+
 
 # Global variables
 
@@ -287,7 +291,7 @@ sub log_dir_for_channel ($) {
 
   my $channel=$uri->channel; $channel=~ s/\W//g;
 
-  return $::Log_Root.'/'.$uri->host.'.'.$uri->port.'/'.$channel.'/';
+  return $::Log_Root.'/'.$uri->host.$::PortSep.$uri->port.'/'.$channel.'/';
 }
 
 
