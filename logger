@@ -701,9 +701,9 @@ sub Channel_close_logs ($) {
 ######################################################################
 # Logging - methods on Net::IRC::Connection object
 
-sub log_event ($$$;$) {
-  my($self, $event, $t, $msg)=@_;
-  my $nick=$event->nick;
+sub log_event ($$$;$$) {
+  my($self, $event, $t, $msg, $fake_nick)=@_;
+  my $nick=$fake_nick ? $fake_nick : $event->nick;
 
   my $channel=Channel_by_name(($event->to)[0]);
 
@@ -1282,7 +1282,7 @@ sub command_for_me ($$$$$) {
       $output="There is no log URI";
     }
     Say( $self, $dest_nick, $output );
-    log_event($self, $event, time, $output) unless $is_private;
+    log_event($self, $event, time, $output, $self->nick) unless $is_private;
     return;
   }
 
@@ -1304,28 +1304,34 @@ sub command_for_me ($$$$$) {
   if ($command =~ /^what(?:\s+are\s+the)?\s+action(?:\s+item)?s\?$/i ||
       $command =~ /^(?:please\s+|pls\s+)?(?:show|list)(?:\s+the)?\s+action(?:\s+item)?s$/i) {
       $channel->{MsgTime} = time;
+      my $nick = $self->nick;
       if ($channel->{IgnoreActions}) {
-	  Say( $self, $dest_nick, "I am ignoring action items, $from_nick" );
+	  my $msg = "I am ignoring action items, $from_nick";
+	  Say( $self, $dest_nick, $msg );
+	  log_event($self, $event, time, $msg, $nick);
 	  return 1;
       }
       my $actionitems = $channel->{ActionItems} ? $channel->{ActionItems} : [];
       my $actionCount = $#{$actionitems} + 1;
       if ($actionCount == 0) {
-	  Say( $self, $dest_nick, 'I see no action items' );
+	  my $msg = 'I see no action items';
+	  Say( $self, $dest_nick, $msg );
+	  log_event($self, $event, time, $msg, $nick);
 	  return 1;
       }
       my $action_index = 1;
-      Say( $self,
-	   $dest_nick,
-	   'I see '.$actionCount.' action item'.($actionCount == 1 ? '' : 's').':'
-	  );
+      my $msg = 'I see '.$actionCount.' action item'.($actionCount == 1 ? '' : 's').':';
+      Say( $self, $dest_nick, $msg );
+      log_event($self, $event, time, $msg, $nick);
       for my $action (@{$actionitems}) {
-	  Say( $self,
-	       $dest_nick,
-	       'ACTION: '.$action->{Topic}.' ['.$action_index++.']'
-	      );
-	  Say( $self, $dest_nick, '  recorded in '.$action->{Pointer} )
-	      if $action->{Pointer};
+	  $msg = 'ACTION: '.$action->{Topic}.' ['.$action_index++.']';
+	  Say( $self, $dest_nick, $msg );
+	  log_event($self, $event, time, $msg, $nick);
+	  if ($action->{Pointer}) {
+	      $msg = '  recorded in '.$action->{Pointer};
+	      Say( $self, $dest_nick, $msg );
+	      log_event($self, $event, time, $msg, $nick);
+	  }
       }
       return 1;
   }
