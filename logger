@@ -450,6 +450,8 @@ sub Channel_get_log_lines ($) {
 sub Channel_open_logs ($) {
   my $self=shift;
 
+  return if $::Log_Path && $self == $AdminChannel;
+
   my $conn=$self->{CONN};
   my $channel_name=$self->{NAME};
 
@@ -623,6 +625,7 @@ EOT
 
 sub Channel_close_logs ($) {
   my $self=shift;
+  return if $::Log_Path && $self == $AdminChannel;
   for my $type (@{$self->{LogTypes}}) {
     $self->{FH}->{$type}->close;
     $self->{FH}->{$type}=undef;
@@ -642,6 +645,8 @@ sub log_event ($$$;$) {
   return if !$channel || !$channel->{Listening};
 
   $channel->{MsgTime} = time;
+
+  return if $::Log_Path && $channel == $AdminChannel;
 
   my @tm = gmtime($t);
   $tm[5]+= 1900; $tm[4]++;
