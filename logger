@@ -284,7 +284,9 @@ sub open_logs ($) {
 <head>
  <title>IRC log of $escaped_chan on $date</title>
 EOT
-      print $::Channel_HTMLLOG '<meta name="generator" content="$Id$" />';
+      my $progID = '$Id$';
+      $progID =~ s/\$/&#36;/;	# Hide the CVS tag from CVS in the output
+      print $::Channel_HTMLLOG '<meta name="generator" content="'.$progID.'" />';
       print $::Channel_HTMLLOG <<"EOT";
 
  <style type="text/css">
