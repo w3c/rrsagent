@@ -974,9 +974,10 @@ sub on_invite {
 
   my @args = $event->args;
   my $channel_name = $args[0];
-  log_admin_event($self, $event, time, "Invited to $channel_name");
+  my $channel_password = $args[1]; # maybe
+  log_admin_event($self, $event, time, "Invited to $channel_name ($arg)");
 
-  $self->join($channel_name);
+  $self->join($channel_name, $channel_password);
 }
 
 
@@ -1216,6 +1217,9 @@ sub command_for_me ($$$$$) {
 	Say( $self, $dest_nick, "I don't know what channel you might mean" );
 	return;
     }
+    if($command=~ /^(?:please\s+|pls\s+)?part\s+(\S*)\s*$/i) {
+	$channel_name = $1 if $1;
+    }
     # Log who told me to quit
     log_admin_event($self, $event, time, "$::Nick told to depart");
     $self->part($channel_name);
@@ -1374,6 +1378,16 @@ sub command_for_me ($$$$$) {
       else {
 	  Say( $self, $dest_nick, 'I see no action items' );
       }
+      return 1;
+  }
+
+  # [please] join <channel> [<password>]
+  if ($command =~ m/^(?:please\s+|pls\s+)?join\s+(\S*)\s*(\S*)\s*$/) {
+      my $channel_name = $1;
+      my $channel_key = $2;
+      print "join $channel_name $channel_key from $from_nick\n";
+      log_admin_event($self, $event, time, "Join request for $channel_name from $from_nick");
+      $self->join($channel_name, $channel_key);
       return 1;
   }
 
