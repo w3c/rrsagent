@@ -705,7 +705,7 @@ sub command_for_me ($$$$$) {
     }
   }
   
-  if($command=~ /^(?:quit|finish|terminate|die die die|exterminate)/i) {
+  if($command=~ /^(?:quit|finish|terminate|die die die|exterminate|bye|excuse us)/i) {
     $::Departing=1;
     $self->me($event->to, 'is departing');
     # Log who told me to quit
@@ -714,7 +714,7 @@ sub command_for_me ($$$$$) {
     exit 0;
   }
   
-  if($command=~ /^(?:be quiet|shut up|silence|sshush|stop|off)/i) {
+  if($command=~ /^(?:be quiet|shut up|silence|sshush|stop|off|nolisten)/i) {
     if($::Channel_Listening) {
       $self->me($event->to, 'is not logging');
       # Log who turned me off BEFORE turning off logging
@@ -726,7 +726,7 @@ sub command_for_me ($$$$$) {
     return;
   }
   
-  if($command=~ /^(?:hello|log|listen|record|start|begin|on)/i) {
+  if($command=~ /^(?:hello|log|listen|record|start|begin|on|listen)/i) {
     if(!$::Channel_Listening) {
       $self->me($event->to, 'is logging');
       $::Channel_Listening=1;
