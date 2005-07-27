@@ -1226,14 +1226,14 @@ sub command_for_me ($$$$$) {
     if($command =~ /^(?:are you\s+)?(?:busy\?)/i) {
       my ($where, $idle);
       for my $channel (@::Channels) {
-	  if ($channel->{Listening}) {
-	      $where .= ' '.$channel->{NAME};
-	      $idle .= ' '.$channel->{NAME}.':'
-		    .int ((time - $channel->{MsgTime} + 30)/60);
-	  }
+	 next if $channel == $AdminChannel;
+	 $where .= ' '.$channel->{NAME};
+	 $where .= '[off]' unless $channel->{Listening};
+	 $idle .= ' '.$channel->{NAME}.':'
+	    .int ((time - $channel->{MsgTime} + 30)/60);
       }
       Say( $self, $dest_nick,
-		     $where ? "I'm listening on$where"
+		     $where ? "I'm present on$where"
 			    : "no, $from_nick, I'm not listening anywhere" );
       Say( $self, $dest_nick, 'Idle mins:'.$idle ) if $idle;
       return;
