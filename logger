@@ -1400,8 +1400,8 @@ sub command_for_me ($$$$$) {
       return 1;
   }
 
-  # [please] make log[s] {team,member,public,world}[-{access,visible,read,readable}]
-  # [please] set log[s] {team,member,public,world}[-{access,visible,read,readable}]
+  # [please] make log[s] {team,member,public,world,offices,ab}[-{access,only,visible,read,readable}]
+  # [please] set log[s] {team,member,public,world,offices,ab}[-{access,only,visible,read,readable}]
   if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)\s+logs?\s+(\S+)\s*$/i) {
       my $access = $1;
 
@@ -1413,12 +1413,12 @@ sub command_for_me ($$$$$) {
 	  return;
       }
 
-      if ($access =~ m/^((?:team|member|public|world))(?:-access|-visible|-read|-readable|)$/i) {
+      if ($access =~ m/^((?:team|member|public|world|offices|ab))(?:-access|-only|-visible|-read|-readable|)$/i) {
 	  $access = lc($1).'-access';
       } else {
 	  Say( $self,
 	       $dest_nick,
-	       "$from_nick, access must be one of team-access, member-access, public-access or world-access"
+	       "$from_nick, access must be one of team, member, offices, AB, public or world"
 	     );
 	  return;
       }
