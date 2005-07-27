@@ -2180,7 +2180,7 @@ sub DisplayActionItems($$$$$$)
     if ($actionCount == 0) {
 	$msg .= 'no action items';
 	Say( $self, $dest_nick, $msg, $addressed );
-	log_event($self, $event, time, $msg, $nick);
+	log_event($self, $event, time, $msg, $nick) if $addressed;
 	return 1;
     }
     $msg .= $actionCount.' open action item'.($actionCount == 1 ? '' : 's');
@@ -2190,16 +2190,16 @@ sub DisplayActionItems($$$$$$)
     $msg .= ' :';
 
     Say( $self, $dest_nick, $msg, $addressed );
-    log_event($self, $event, time, $msg, $nick);
+    log_event($self, $event, time, $msg, $nick) if $addressed;
     for my $action (@{$actionitems}) {
 	next if $action->{Status} && $action->{Status} eq $::ActionDropped;
 	$msg = 'ACTION: '.$action->{Topic}.' ['.$action->{id}.']';
 	Say( $self, $dest_nick, $msg, $addressed );
-	log_event($self, $event, time, $msg, $nick);
+	log_event($self, $event, time, $msg, $nick) if $addressed;
 	if ($action->{Pointer}) {
 	    $msg = '  recorded in '.$action->{Pointer};
 	    Say( $self, $dest_nick, $msg, $addressed );
-	    log_event($self, $event, time, $msg, $nick);
+	    log_event($self, $event, time, $msg, $nick) if $addressed;
 	}
     }
 }
