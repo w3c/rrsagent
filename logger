@@ -2183,7 +2183,12 @@ sub DisplayActionItems($$$$$$)
 	log_event($self, $event, time, $msg, $nick);
 	return 1;
     }
-    $msg .= $actionCount.' open action item'.($actionCount == 1 ? '' : 's').':';
+    $msg .= $actionCount.' open action item'.($actionCount == 1 ? '' : 's');
+
+    $msg .= ' saved in '. $::Log_URI . $channel->{ActionLog} if $channel->{ActionLog};
+
+    $msg .= ' :';
+
     Say( $self, $dest_nick, $msg, $addressed );
     log_event($self, $event, time, $msg, $nick);
     for my $action (@{$actionitems}) {
