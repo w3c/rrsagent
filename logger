@@ -2136,7 +2136,7 @@ sub ReapIdleChannels($)
     for (my $index=0; $index <= $#::Channels; $index++) {
 	# have to use indexed-for since we intend to modify the array
 	my $channel = $::Channels[$index];
-	if ($channel != $AdminChannel) {
+	if ($channel && $channel != $AdminChannel) {
 	    # if nothing interesting has been heard from the channel in 2 hours
 	    if ((time - $channel->{MsgTime}) > $ReaperThreshold) {
 		log_admin_event($conn, undef, time, "$::Nick auto-departing $channel->{NAME}");
