@@ -325,6 +325,8 @@ exit(0);
 				# 	      kept for possible future use
 				# {ActionLog}
 				# {MinutesName}
+				# {logOpenTime} - time at current logs start
+				# {ignoreRollover} - don't open new log at 24h
 
 				# ActionItems[] -> {Topic}, {Pointer}, {id}
 
@@ -361,6 +363,7 @@ sub Channel_new ($) {
 
   # Track midnight rollover
   $self->{hour}= undef;
+  $self->{ignoreRollover} = undef;
 
   # NET::IRC connection object
   $self->{CONN}=undef;
@@ -532,7 +535,8 @@ sub Channel_open_logs ($) {
   my $channel_name=$self->{NAME};
   $channel_name =~ s/^[#&]//;
 
-  my @tm = gmtime;
+  $self->{logOpenTime} = time;
+  my @tm = gmtime($self->{logOpenTime});
   $tm[5]+= 1900; $tm[4]++;
   my $date = sprintf("%04d-%02d-%02d", $tm[5], $tm[4], $tm[3]);
 
@@ -544,10 +548,10 @@ sub Channel_open_logs ($) {
   } else {
     my $logname;
     if ($::LogName_Pattern) {
-      $log_name = strftime( $::LogName_Pattern, gmtime );
+      $log_name = strftime( $::LogName_Pattern, gmtime($self->{logOpenTime}) );
     }
     else {
-      $log_name = strftime( $::Default_Pattern, gmtime );
+      $log_name = strftime( $::Default_Pattern, gmtime($self->{logOpenTime}) );
       my $log_dir=Channel_get_log_dir($self);
 
       print "making $log_dir\n";
@@ -742,11 +746,13 @@ sub log_event ($$$;$$) {
   my $date_time="$date $time";
 
   my $hour=$tm[2];
-  # if we're using dated logs and we passed midnight, start new logs
-  if (!$channel->{LogName} &&
+  # if we're using dated logs and we passed midnight and we're not
+  # coalescing multiple days into a single log, start new logs
+  if (!$channel->{LogName} && !$channel->{ignoreRollover} &&
       defined $channel->{hour} && ($hour < $channel->{hour})) {
     Channel_close_logs($channel);
     Channel_open_logs($channel);
+    $channel->{MinutesName} = undef; # force generation of new name
   }
 
   $channel->{hour} = $hour;
@@ -1270,7 +1276,7 @@ sub command_for_me ($$$$$) {
     return;
   }
 
-  if($command=~ /^(?:be quiet|shut up|silence|sshush|stop|off|nolisten)/i) {
+  if($command=~ /^(?:please\s+|pls\s+|)(?:be quiet|shut up|silence|s?shush|stop|off|nolisten)\s*$/i) {
     unless ($channel) {
 	Say( $self, $dest_nick, "I don't know what channel you might mean" );
 	return;
@@ -1286,7 +1292,7 @@ sub command_for_me ($$$$$) {
     return;
   }
   
-  if($command=~ /^(?:hello|log|listen|record|start|begin|on|listen)/i) {
+  if($command=~ /^(?:please\s+|pls\s+|)(?:hello|log|listen|record|start|begin|on)\s*$/i) {
     unless ($channel) {
 	Say( $self, $dest_nick, "I don't know what channel you might mean" );
 	return;
@@ -1480,7 +1486,7 @@ sub command_for_me ($$$$$) {
       my $input = $channel->{LogBasename};
       my $docname = $channel->{MinutesName};
       unless ($docname) {
-	  $docname = strftime( $::MinutesName_Pattern, gmtime );
+	  $docname = strftime( $::MinutesName_Pattern, gmtime($channel->{logOpenTime}) );
 	  my $channel_name=$channel->{NAME};
 	  $channel_name =~ s/^[#&]//;
 	  $docname =~ s/<channel>/$channel_name/;
@@ -1492,7 +1498,7 @@ sub command_for_me ($$$$$) {
       my $msg = "I have made the request to generate $::Log_URI$docname $from_nick";
       log_event($self, $event, time, $msg, $self->nick);
 
-      my $access = $channel->{LogAccess};
+      my $access = $channel->{LogAccess} || '';
       if ($access) {
 	  $access = "; ${ECHO}make URI=$::Log_URI$docname $access";
       }
@@ -1501,6 +1507,24 @@ sub command_for_me ($$$$$) {
       Say( $self,
 	   $dest_nick,
 	   $msg
+	 );
+
+      return;
+  }
+
+  # [this] meeting spans midnight
+  # [please] don't start [a] new log [at midnight]
+  if ($command =~ m/^(?:this\s+|)meeting\s+(spans)\s+midnight\s*$/i ||
+      $command =~ m/^(?:please\s+|pls\s+|)((?:don't\s+|do\s+not\s+|))start\s+(?:a\s+|)new\s+log(?:\s+at\s+midnight|)\s*$/i) {
+
+      my $ignoreRollover = ($1 =~ m/^(?:spans|do)/);
+
+      $channel->{ignoreRollover} = $ignoreRollover;
+      my $not = $ignoreRollover ? ' not' : '';
+
+      Say( $self,
+	   $dest_nick,
+	   "ok, $from_nick; I will$not start a new log at midnight"
 	 );
 
       return;
