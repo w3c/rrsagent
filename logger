@@ -1118,6 +1118,11 @@ sub on_join {
       # %%% could this be executed if we depart the AdminChannel and rejoin?
       $channel->{Listening} = $::LogInitial if $channel == $AdminChannel;
       Channel_open_logs($channel);
+      my @tm = gmtime();
+      # if we're joining with less than 1:15 to go before midnight
+      # then keep a single log
+      $channel->{ignoreRollover} = 1
+	  if $tm[2] == 23 || ($tm[2] == 22 && $tm[1] > 44);
   }
 
   log_event($self, $event, $t, $m);
