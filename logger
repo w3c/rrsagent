@@ -828,7 +828,8 @@ EOT
     $self->schedule( $::CVSCommitInterval,
 		     sub
 		     {
-			 system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
+			 my $files = $channel->{CVSFiles};
+			 system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $files; cvs commit -m \"[$::Nick] sync\" $files &'"));
 			 $channel->{CVSCommitScheduled} = 0;
 		     }
 		    );
