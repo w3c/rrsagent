@@ -1171,6 +1171,7 @@ sub command_for_me ($$$$$) {
       			   : Channel_by_name($channel_name);
 
   $command=~s/^\s+//;
+  $command=~s/,?\s+please(\??)$/$1/; # ignore ", please" at the end of a line
 
   my $output='';
 
