@@ -1463,6 +1463,20 @@ sub command_for_me ($$$$$) {
 	   "I have made the request, $from_nick"
 	 );
 
+      {
+	my $style;
+	$style = '-member' if $access =~ m/^member/;
+	$style = '-team' if $access =~ m/^(?:team|offices|ab)/;
+	if ($style) {
+	    my $msg = "ScribeOptions: $style";
+	    Say( $self,
+		 $dest_nick,
+		 $msg
+		);
+	    log_event($self, $event, time, $msg, $self->nick);
+	}
+      }
+
       return;
   }
 
