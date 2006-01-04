@@ -704,6 +704,12 @@ EOT
       $self->{CVSCommitScheduled} = 0;
       my $ECHO = $::TestMode ? 'echo ' : '';
       system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $cvs_files &'"));
+
+      if (my $access = $self->{LogAccess}) {
+	  for my $file (split(' ', $cvs_files)) {
+	      system(("${ECHO}make URI=$::Log_URI$file $access &"));
+	  }
+      }
   }
 }
 
