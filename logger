@@ -194,6 +194,16 @@ $::CVSkeywords = '\$'.'Date\$|\$'.'Date:.*\$|\$'.'Revision\$|\$'.'Revision:.*\$|
 
 ######################################################################
 
+sub CMD ($) {
+    my ($cmd_string) = @_;
+
+    if ($::TestMode) {
+	print "$cmd_string\n";
+    }
+    else {
+	system( ($cmd_string) );
+    }
+}	
 
 sub main {
   my $usage=<<"EOT";
@@ -702,12 +712,11 @@ EOT
   if ($cvs_files) {
       $self->{CVSFiles} = $cvs_files;
       $self->{CVSCommitScheduled} = 0;
-      my $ECHO = $::TestMode ? 'echo ' : '';
-      system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $cvs_files &'"));
+      CMD("{ cd $::Log_LocalPath; cvs add $cvs_files; }&");
 
       if (my $access = $self->{LogAccess}) {
 	  for my $file (split(' ', $cvs_files)) {
-	      system(("${ECHO}make URI=$::Log_URI$file $access &"));
+	      CMD("make URI=$::Log_URI$file $access &");
 	  }
       }
   }
@@ -724,8 +733,7 @@ sub Channel_close_logs ($) {
   $self->{LogsOpen} = 0;
 
   if ($::Do_CVS && $self->{CVSFiles}) {
-    my $ECHO = $::TestMode ? 'echo ' : '';
-    system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$self->{CVSFiles}." &'"));
+    CMD("{ cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$self->{CVSFiles}."; }&");
   };
 }
 
@@ -830,12 +838,11 @@ EOT
   print $rdf_log_fh $::rdf_suffix;
 
   if ($::Do_CVS && !$channel->{CVSCommitScheduled} && $channel->{CVSFiles}) {
-    my $ECHO = $::TestMode ? 'echo ' : '';
     $self->schedule( $::CVSCommitInterval,
 		     sub
 		     {
 			 my $files = $channel->{CVSFiles};
-			 system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $files; cvs commit -m \"[$::Nick] sync\" $files &'"));
+			 CMD("{ cd $::Log_LocalPath; cvs add $files; cvs commit -m \"[$::Nick] sync\" $files; }&");
 			 $channel->{CVSCommitScheduled} = 0;
 		     }
 		    );
@@ -1444,11 +1451,9 @@ sub command_for_me ($$$$$) {
 
       $channel->{LogAccess} = $access;
 
-      my $ECHO = $::TestMode ? 'echo ' : '';
-
       if ($channel->{CVSFiles}) {
 	  # make sure these exist in Web space
-	  system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
+	  CMD("{ cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}."; }&");
       } else {
 	  Say( $self,
 	       $dest_nick,
@@ -1458,11 +1463,11 @@ sub command_for_me ($$$$$) {
       }
 
       for my $file (split(' ', $channel->{CVSFiles})) {
-	  system(("${ECHO}make URI=$::Log_URI$file $access &"));
+	  CMD("make URI=$::Log_URI$file $access &");
       }
 
       if (my $file = $channel->{MinutesName}) {
-          system(("${ECHO}make URI=$::Log_URI$file $access &"));
+          CMD("make URI=$::Log_URI$file $access &");
       }
 
       Say( $self,
@@ -1497,11 +1502,9 @@ sub command_for_me ($$$$$) {
 	  return;
       }
 
-      my $ECHO = $::TestMode ? 'echo ' : '';
-
       if ($channel->{CVSFiles}) {
 	  # make sure these exist in Web space
-	  system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}." &'"));
+	  CMD("{ cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}."; }&");
       } else {
 	  Say( $self,
 	       $dest_nick,
@@ -1526,11 +1529,9 @@ sub command_for_me ($$$$$) {
       log_event($self, $event, time, $msg, $self->nick);
 
       my $access = $channel->{LogAccess} || '';
-      if ($access) {
-	  $access = "; ${ECHO}make URI=$::Log_URI$docname $access";
-      }
+      $access = "make URI=$::Log_URI$docname $access;" if $access;
 
-      system(("${ECHO}make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes $access &"));
+      CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes; $access }&");
       Say( $self,
 	   $dest_nick,
 	   $msg
@@ -2298,11 +2299,10 @@ sub ExportActionList($)
     }
 
     if ($newlyCreated && $::Do_CVS) {
-	my $ECHO = $::TestMode ? 'echo ' : '';
-	system(("${ECHO}sh -c 'cd $::Log_LocalPath; cvs add $docname &'"));
+	CMD("{ cd $::Log_LocalPath; cvs add $docname; }&");
 
 	if (my $access = $channel->{LogAccess}) {
-	    system(("${ECHO}make URI=$::Log_URI$docname $access &"));
+	    CMD("make URI=$::Log_URI$docname $access &");
 	}
     }
 
