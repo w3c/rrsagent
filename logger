@@ -337,6 +337,7 @@ exit(0);
 				# {MinutesName}
 				# {logOpenTime} - time at current logs start
 				# {ignoreRollover} - don't open new log at 24h
+				# {ScribeOptions} - passed to 'make minutes'
 
 				# ActionItems[] -> {Topic}, {Pointer}, {id}
 
@@ -1475,19 +1476,8 @@ sub command_for_me ($$$$$) {
 	   "I have made the request, $from_nick"
 	 );
 
-      {
-	my $style;
-	$style = '-member' if $access =~ m/^member/;
-	$style = '-team' if $access =~ m/^(?:team|offices|ab)/;
-	if ($style) {
-	    my $msg = "ScribeOptions: $style";
-	    Say( $self,
-		 $dest_nick,
-		 $msg
-		);
-	    log_event($self, $event, time, $msg, $self->nick);
-	}
-      }
+      $channel->{ScribeOptions} = '-member' if $access =~ m/^member/;
+      $channel->{ScribeOptions} = '-team'   if $access =~ m/^(?:team|offices|ab)/;
 
       return;
   }
@@ -1531,7 +1521,10 @@ sub command_for_me ($$$$$) {
       my $access = $channel->{LogAccess} || '';
       $access = "make URI=$::Log_URI$docname $access;" if $access;
 
-      CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir minutes; $access }&");
+      my $options = $channel->{ScribeOptions} || '';
+      $options = "OPTIONS=\"$options\"" if $options;
+
+      CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options minutes; $access }&");
       Say( $self,
 	   $dest_nick,
 	   $msg
