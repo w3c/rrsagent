@@ -201,6 +201,7 @@ sub CMD ($) {
 	print "$cmd_string\n";
     }
     else {
+	print strftime( '%Y-%m-%dT%H:%M:%SZ', gmtime ), "\n";
 	system( ($cmd_string) );
     }
 }	
