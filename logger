@@ -714,12 +714,16 @@ EOT
   if ($cvs_files) {
       $self->{CVSFiles} = $cvs_files;
       $self->{CVSCommitScheduled} = 0;
-      CMD("{ cd $::Log_LocalPath; cvs add $cvs_files; }&");
+      CMD("{ cd $::Log_LocalPath; cvs add $cvs_files; cvs commit -m \"[$::Nick] create\" $cvs_files; }&");
 
       if (my $access = $self->{LogAccess}) {
+	  my $URIs = '';
 	  for my $file (split(' ', $cvs_files)) {
-	      CMD("make URI=$::Log_URI$file $access &");
+	      $URIs .= $::Log_URI.$file.' ';
 	  }
+
+	  # sleep 5 for pause to let cvs complete
+	  CMD("{ sleep 5; make URI='$URIs' $access; }&");
       }
   }
 }
@@ -1464,12 +1468,17 @@ sub command_for_me ($$$$$) {
 	  return;
       }
 
-      for my $file (split(' ', $channel->{CVSFiles})) {
-	  CMD("make URI=$::Log_URI$file $access &");
-      }
+      {
+	  my $URIs = '';
+	  for my $file (split(' ', $channel->{CVSFiles})) {
+	      $URIs .= $::Log_URI.$file.' ';
+	  }
 
-      if (my $file = $channel->{MinutesName}) {
-          CMD("make URI=$::Log_URI$file $access &");
+	  if (my $file = $channel->{MinutesName}) {
+	      $URIs .= $::Log_URI.$file;
+	  }
+
+	  CMD("make URI='$URIs' $access &");
       }
 
       Say( $self,
