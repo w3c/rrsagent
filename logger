@@ -1487,7 +1487,8 @@ sub command_for_me ($$$$$) {
 	 );
 
       $channel->{ScribeOptions} = '-member' if $access =~ m/^member/;
-      $channel->{ScribeOptions} = '-team'   if $access =~ m/^(?:team|offices|ab)/;
+      $channel->{ScribeOptions} = '-team'   if $access =~ m/^(?:team|ab)/;
+      $channel->{ScribeOptions} = '-template /home/ivan/WWW/2006/01/officeScribeTemplate.html' if $access =~ m/^offices/;
 
       return;
   }
