@@ -89,6 +89,7 @@ $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 #URIschemes and URIpatterns must match in order.  The order is not signficant.
 @::URIschemes = (
     'http://',
+    'https://',
     'news:',
     'ftp://',
     'file://',
@@ -102,6 +103,7 @@ $::rdf_suffix_length=undef;	# account for \n to \r\n expansion in stdio
 
 @::URIpatterns = (
     qr|(http://)([^] \)>\"\'\n\[\t\\]*)(.*)$|,
+    qr|(https://)([^] \)>\"\'\n\[\t\\]*)(.*)$|,
     qr|(news:)([^] \)>"\'\n[\t\\]*)(.*)$|,
     qr|(ftp://)([^] \)>"\'\n[\t\\]*)(.*)$|,
     qr|(file://)([^] \)>"\'\n[\t\\]*)(.*)$|,
