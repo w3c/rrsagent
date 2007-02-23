@@ -1499,8 +1499,8 @@ sub command_for_me ($$$$$) {
       return;
   }
 
-  # [please] create|draft|format|generate|make minutes
-  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|draft|format|generate|make)\s+minutes\s*$/i) {
+  # [please] create|draft|format|generate|make|publish minutes
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|draft|format|generate|make|publish)\s+(?:the\s+|these\s+|this\s+|)minutes\s*$/i) {
       unless ($::Do_CVS && $::MinutesName_Pattern) {
 	  Say( $self,
 	       $dest_nick,
