@@ -954,7 +954,7 @@ sub on_msg {
   return if $nick eq $::Nick;
 
   my $arg = join(' ', $event->args);
-  command_for_me($self, $event, $channel_name, $arg, 1);
+  command_for_me($self, $event, $channel_name, $arg, 1, 1);
 }
 
 
@@ -971,10 +971,10 @@ sub on_public {
   log_event($self, $event, time, $arg);
 
   if ($arg =~ /^$mynick[,:]\s*(.*)$/i) {
-    command_for_me($self, $event, $to[0], $1, 0);
+    command_for_me($self, $event, $to[0], $1, 0, 1);
   }
   else {
-    watch_significant_events($self, $event, $to[0], $arg, 0, 0);
+    watch_significant_events($self, $event, $to[0], $arg, 0, 0, 1);
   }
 
   if ($ReaperThreshold && !$ReaperScheduled) {
@@ -992,10 +992,10 @@ sub on_caction {
   my $arg = join(' ', $event->args);
 
   if ($arg =~ /^$mynick,\s+(.*)$/i) {
-    command_for_me($self, $event, @{$event->to}[0], $1, 0);
+    command_for_me($self, $event, @{$event->to}[0], $1, 0, 0);
   }
   else {
-    watch_significant_events($self, $event, @{$event->to}[0], $arg, 0, 0);
+    watch_significant_events($self, $event, @{$event->to}[0], $arg, 0, 0, 0);
   }
 
   # Private stuff
@@ -1184,10 +1184,12 @@ sub on_join {
 }
 
 
-sub command_for_me ($$$$$) {
-  my($self, $event, $channel_name, $command, $is_private)=@_;
+sub command_for_me ($$$$$$) {
+  my($self, $event, $channel_name, $command, $is_private, $first_person)=@_;
   my $from_nick=$event->nick;
-  my $dest_nick=($is_private ? $from_nick : $event->to);
+  my $dest_nick=($is_private ? $from_nick :
+		 ($first_person ? $event->to : join('',$event->to)));
+
   my $channel= $is_private ? undef # Channel_by_nick($from_nick)
       			   : Channel_by_name($channel_name);
 
@@ -1363,8 +1365,9 @@ sub command_for_me ($$$$$) {
     } else {
       $output="There is no log URI";
     }
-    Say( $self, $dest_nick, $output );
-    log_event($self, $event, time, $output, $self->nick) unless $is_private;
+    Say( $self, $dest_nick, $output, $first_person );
+    log_event($self, $event, time, $output, $self->nick)
+	unless $is_private || !$first_person;
     return;
   }
 
@@ -1761,7 +1764,7 @@ sub command_for_me ($$$$$) {
       return;
     }
   } else {
-    return if watch_significant_events($self, $event, $channel_name, $command, $is_private, 1);
+    return if watch_significant_events($self, $event, $channel_name, $command, $is_private, 1, 1);
     $output.="I don't understand '$command', $from_nick.  Try /msg $::Nick help";
   }
 
@@ -2035,8 +2038,8 @@ sub log_pending_output($)
 # to the bot.
 #
 # Returns 0 if no such message was found, else 1
-sub watch_significant_events ($$$$$$) {
-    my($self, $event, $channel_name, $msg, $is_private, $addressed)=@_;
+sub watch_significant_events ($$$$$$$) {
+    my($self, $event, $channel_name, $msg, $is_private, $addressed, $first_person)=@_;
     my $from_nick=$event->nick;
     my $channel= $is_private ? undef # Channel_by_nick($from_nick)
 			     : Channel_by_name($channel_name);
@@ -2048,6 +2051,8 @@ sub watch_significant_events ($$$$$$) {
     # ACTION:
     if ($msg =~ m/^\s*(?:action\s*)(?:(\w+)\s*|)(:)\s*(.*)$/i ||
 	$msg =~ m/^\s*(?:action\s*)(-)\s*(.*)$/i ) {
+
+	return 0 unless $first_person;
 
 	$channel->{MsgTime} = time;
 	if ($channel->{IgnoreActions}) {
@@ -2136,6 +2141,9 @@ sub watch_significant_events ($$$$$$) {
 		if $addressed;
 	    return 1;
 	}
+
+	return 0 unless $first_person;
+
 	if ($is_private) {
 	    Say( $self, $dest_nick, "I will not do that one-on-one, $from_nick", 1 );
 	    return 1;
@@ -2187,7 +2195,7 @@ sub watch_significant_events ($$$$$$) {
 	return 1;
     }
 
-    # action?
+    # actions?
     if ($msg =~ m/^\s*(?:actions)\s*\?$/i) {
 	DisplayActionItems($self, $event, $channel, $from_nick, $dest_nick, $addressed);
 	return 1;
