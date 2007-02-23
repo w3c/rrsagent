@@ -1280,9 +1280,15 @@ sub command_for_me ($$$$$) {
 	$dest_nick = $channel_name if $channel;
     }
     unless ($channel) {
-	Say( $self, $dest_nick, "I don't know what channel you might mean" );
+	Say( $self, $dest_nick, "I don't know what channel you might mean, $from_nick" );
 	return;
     }
+
+    unless ($channel->{LogAccess}) {
+	Say( $self, $dest_nick, "I'm staying, $from_nick; no access has been specified for the meeting record" );
+	return;
+    }
+
     DisplayActionItems($self, $event, $channel, $from_nick, $dest_nick);
     Perform( $dest_nick,
 	     sub {
