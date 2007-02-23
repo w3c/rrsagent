@@ -1438,8 +1438,8 @@ sub command_for_me ($$$$$) {
       return 1;
   }
 
-  # [please] make [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,only,visible,read,readable}]
-  # [please] set [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,only,visible,read,readable}]
+  # [please] make [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,conf,confidential,only,read,readable,visible}]
+  # [please] set [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,conf,confidential,only,read,readable,visible}]
   if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)(?:\s+these|\s+this|)\s+(?:log|record)s?\s+(\S+)\s*$/i) {
       my $access = $1;
 
@@ -1451,7 +1451,7 @@ sub command_for_me ($$$$$) {
 	  return;
       }
 
-      if ($access =~ m/^((?:team|member|public|world|offices|ab))(?:-access|-only|-visible|-read|-readable|)$/i) {
+      if ($access =~ m/^((?:team|member|public|world|offices|ab))(?:-access|-conf|-confidential|-only|-read|-readable|-visible|)$/i) {
 	  $access = lc($1).'-access';
       } else {
 	  Say( $self,
