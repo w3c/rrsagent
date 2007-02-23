@@ -2338,7 +2338,7 @@ sub ExportActionList($)
 </rdf:Description>
 
 <rdf:Description rdf:about="$mtgRecord">
-  <m:ActionList>
+  <m:actionItems>
     <rdf:Seq>
 EOT
 
@@ -2361,7 +2361,7 @@ EOT
 
     print ACTIONS
 '    </rdf:Seq>
-  </m:ActionList>
+  </m:actionItems>
 </rdf:Description>
 
 </rdf:RDF>
