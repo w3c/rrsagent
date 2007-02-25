@@ -1542,7 +1542,7 @@ sub command_for_me ($$$$$$) {
       log_event($self, $event, time, $msg, $self->nick);
 
       my $access = $channel->{LogAccess} || '';
-      $access = "make URI=$::Log_URI$docname $access;" if $access;
+      $access = "sleep 5; make URI=$::Log_URI$docname $access;" if $access;
 
       my $options = $channel->{ScribeOptions} || '';
       $options = "OPTIONS=\"$options\"" if $options;
@@ -2320,10 +2320,11 @@ sub ExportActionList($)
     }
 
     if ($newlyCreated && $::Do_CVS) {
-	CMD("{ cd $::Log_LocalPath; cvs add $docname; }&");
+	CMD("{ cd $::Log_LocalPath; cvs add $docname; cvs -m \"[$::Nick] create\" commit $docname; }&");
 
 	if (my $access = $channel->{LogAccess}) {
-	    CMD("make URI=$::Log_URI$docname $access &");
+	    # sleep 5 for pause to let cvs complete
+	    CMD("{ sleep 5; make URI=$::Log_URI$docname $access; }&");
 	}
     }
 
