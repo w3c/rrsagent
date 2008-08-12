@@ -73,6 +73,12 @@ $::LogUserHosts=0;
 $::OffTopic=1;        # [off] at start of line is not logged
 $::HelpURI = undef;		# URI for detailed help
 
+$::LastACLModTime = 0;		# Directory mod time
+# local directory for ACL ('make record XX-access') templates
+$::ACLTemplateDir = "/www.w3.org/2008/07/acl_uris/";
+# List of permissible ACL names
+@::ACLNames = qw(public);
+
 @::LogTypes=qw(rdf html txt);
 @::DefaultLogTypes=qw(rdf txt);
 
@@ -1460,12 +1466,18 @@ sub command_for_me ($$$$$$) {
 	  return;
       }
 
-      if ($access =~ m/^((?:team|member|public|world|offices|ab))(?:-access|-conf|-confidential|-only|-read|-readable|-visible|)$/i) {
+      CheckACLTemplates();
+      my $ACLvalues = join('|', @::ACLNames);
+      if ($access =~ m/^((?:$ACLvalues))(?:-access|-conf|-confidential|-only|-read|-readable|-visible|)$/i) {
 	  $access = lc($1).'-access';
       } else {
+	  my @names = @::ACLNames;
+	  my $last = pop @names;
 	  Say( $self,
 	       $dest_nick,
-	       "$from_nick, access must be one of team, member, offices, AB, public or world"
+	       "$from_nick, access must be "
+               .($#names > 1 ? "one of ".join(', ', @names).', or ' : '')
+	       ."$last"
 	     );
 	  return;
       }
@@ -2383,6 +2395,40 @@ EOT
 
     close ACTIONS;
     return 1;
+}
+
+
+sub CheckACLTemplates()
+# ACL templates for "make record XX-access" are kept in a local directory
+# Call this function to check that directory for changes and update
+# a global list of access names
+{
+    my ($dev,$ino,$mode,$nlink,$uid,$gid,$rdev,$size,$atime,
+	$mtime,$ctime,$blksize,$blocks)
+	= stat($::ACLTemplateDir);
+
+    if (! defined $mtime) {
+	print "ACL template dir $::ACLTemplateDir missing\n";
+	return;
+    }
+
+    if ($mtime > $::LastACLModTime) {
+	opendir( ACLDIR, $::ACLTemplateDir )
+	    or do {
+		warn "Can't open ACL template directory $::ACLTemplateDir\n";
+		return;
+	    };
+	my @templates = readdir( ACLDIR );
+	closedir( ACLDIR );
+	@::ACLNames = qw(public);
+	foreach my $template (@templates) {
+	    next if $template =~ m/-script$/;
+	    next if $template =~ m/^\./;
+	    push @::ACLNames, $template;
+	}
+	$::LastACLModTime = $mtime;
+	print "ACLNames = @::ACLNames\n";
+    }
 }
 
 
