@@ -1461,7 +1461,8 @@ sub command_for_me ($$$$$$) {
       unless ($::Do_CVS) {
 	  Say( $self,
 	       $dest_nick,
-	       "I am not running that function here, $from_nick"
+	       "I am not running that function here, $from_nick",
+	       $first_person
 	     );
 	  return;
       }
@@ -1477,7 +1478,8 @@ sub command_for_me ($$$$$$) {
 	       $dest_nick,
 	       "$from_nick, access must be "
                .($#names > 1 ? "one of ".join(', ', @names).', or ' : '')
-	       ."$last"
+	       ."$last",
+	       $first_person
 	     );
 	  return;
       }
@@ -1490,7 +1492,8 @@ sub command_for_me ($$$$$$) {
       } else {
 	  Say( $self,
 	       $dest_nick,
-	       "The logs do not appear to be created yet, $from_nick"
+	       "The logs do not appear to be created yet, $from_nick",
+	       $first_person
 	     );
 	  return;
       }
@@ -1510,7 +1513,8 @@ sub command_for_me ($$$$$$) {
 
       Say( $self,
 	   $dest_nick,
-	   "I have made the request, $from_nick"
+	   "I have made the request, $from_nick",
+	   $first_person
 	 );
 
       $channel->{ScribeOptions} = '-member' if $access =~ m/^member/;
@@ -1521,13 +1525,21 @@ sub command_for_me ($$$$$$) {
   }
 
   # [please] create|draft|format|generate|make|publish minutes
-  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|draft|format|generate|make|publish)\s+(?:the\s+|these\s+|this\s+|)minutes\s*$/i) {
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|draft|format|generate|make|publish)\s+(?:the\s+|these\s+|this\s+|)(minutes|seconds|hours)\s*$/i) {
+      my $which = $1;
+
       unless ($::Do_CVS && $::MinutesName_Pattern) {
 	  Say( $self,
 	       $dest_nick,
 	       "I am not running that function here, $from_nick"
 	     );
 	  return;
+      }
+
+      if ($which =~ m/seconds/) {
+	  Say( $self, $dest_nick, "meeting was that short, eh?" );
+      } elsif ($which =~ m/hours/) {
+	  Say( $self, $dest_nick, "you must all be tired after such a long meeting!" );
       }
 
       if ($channel->{CVSFiles}) {
