@@ -1455,8 +1455,10 @@ sub command_for_me ($$$$$$) {
 
   # [please] make [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,conf,confidential,only,read,readable,visible}]
   # [please] set [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,conf,confidential,only,read,readable,visible}]
-  if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)(?:\s+these|\s+this|)\s+(?:log|record)s?\s+(\S+)\s*$/i) {
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)(?:\s+these|\s+this|)\s+(?:log|record)s?\s+(\S+)(?:\s+(\S+)|)\s*$/i) {
       my $access = $1;
+      my $noise = $2;
+      my $noiseWords = 'access|conf|confidential|only|read|readable|visible';
 
       unless ($::Do_CVS) {
 	  Say( $self,
@@ -1469,8 +1471,10 @@ sub command_for_me ($$$$$$) {
 
       CheckACLTemplates();
       my $ACLvalues = join('|', @::ACLNames);
-      if ($access =~ m/^((?:$ACLvalues))(?:-access|-conf|-confidential|-only|-read|-readable|-visible|)$/i) {
-	  $access = lc($1).'-access';
+      if (($noise =~ m/^(?:$noiseWords|)$/i) &&
+	  ($access =~ m/^((?:$ACLvalues))$/i ||
+	   $access =~ m/^((?:$ACLvalues))-(?:$noiseWords)$/i)) {
+	    $access = lc($1).'-access';
       } else {
 	  my @names = @::ACLNames;
 	  my $last = pop @names;
