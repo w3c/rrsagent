@@ -722,17 +722,18 @@ EOT
   if ($cvs_files) {
       $self->{CVSFiles} = $cvs_files;
       $self->{CVSCommitScheduled} = 0;
-      CMD("{ cd $::Log_LocalPath; cvs add $cvs_files; cvs commit -m \"[$::Nick] create\" $cvs_files; }&");
 
+      my $access_cmd = '';
       if (my $access = $self->{LogAccess}) {
 	  my $URIs = '';
 	  for my $file (split(' ', $cvs_files)) {
 	      $URIs .= $::Log_URI.$file.' ';
 	  }
-
-	  # sleep 5 for pause to let cvs complete
-	  CMD("{ sleep 5; make URI='$URIs' $access; }&");
+	  $access_cmd = "sleep 5; make URI='$URIs' $access; ";
       }
+
+      CMD("{ pushd $::Log_LocalPath; cvs add $cvs_files; cvs commit -m \"[$::Nick] create\" $cvs_files; popd; $access_cmd }&");
+
   }
 }
 
@@ -1457,7 +1458,7 @@ sub command_for_me ($$$$$$) {
   # [please] set [these|this] log|record}[s] {team,member,public,world,offices,ab}[-{access,conf,confidential,only,read,readable,visible}]
   if ($command =~ m/^(?:please\s+|pls\s+|)(?:make|set)(?:\s+these|\s+this|)\s+(?:log|record)s?\s+(\S+)(?:\s+(\S+)|)\s*$/i) {
       my $access = $1;
-      my $noise = $2;
+      my $noise = $2 || '';
       my $noiseWords = 'access|conf|confidential|only|read|readable|visible';
 
       unless ($::Do_CVS) {
@@ -1490,18 +1491,7 @@ sub command_for_me ($$$$$$) {
 
       $channel->{LogAccess} = $access;
 
-      if ($channel->{CVSFiles}) {
-	  # make sure these exist in Web space
-	  CMD("{ cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}."; }&");
-      } else {
-	  Say( $self,
-	       $dest_nick,
-	       "The logs do not appear to be created yet, $from_nick",
-	       $first_person
-	     );
-	  return;
-      }
-
+      my $access_cmd = '';
       {
 	  my $URIs = '';
 	  for my $file (split(' ', $channel->{CVSFiles})) {
@@ -1512,7 +1502,19 @@ sub command_for_me ($$$$$$) {
 	      $URIs .= $::Log_URI.$file;
 	  }
 
-	  CMD("make URI='$URIs' $access &");
+	  $access_cmd = "make URI='$URIs' $access";
+      }
+
+      if ($channel->{CVSFiles}) {
+	  # make sure these exist in Web space
+	  CMD("{ pushd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}."; popd; $access_cmd }&");
+      } else {
+	  Say( $self,
+	       $dest_nick,
+	       "The logs do not appear to be created yet, $from_nick",
+	       $first_person
+	     );
+	  return;
       }
 
       Say( $self,
