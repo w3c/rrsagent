@@ -67,6 +67,7 @@ $::IRC_Name='Chat Logger';
 $::Max_Results=5;
 $::Max_Max_Results=20;
 $::CVSCommitInterval = 120;	# seconds between CVS commits if -cvs specified
+$::CVSADDOPTIONS = '-ko';	# options to 'cvs add'
 
 $::LogActionMsgs=1;
 $::LogUserHosts=0;
@@ -732,8 +733,7 @@ EOT
 	  $access_cmd = "sleep 5; make URI='$URIs' $access; ";
       }
 
-      CMD("{ pushd $::Log_LocalPath; cvs add $cvs_files; cvs commit -m \"[$::Nick] create\" $cvs_files; popd; $access_cmd }&");
-
+      CMD("{ pushd $::Log_LocalPath; cvs add $::CVSADDOPTIONS $cvs_files; cvs commit -m \"[$::Nick] create\" $cvs_files; popd; $access_cmd }&");
   }
 }
 
@@ -857,7 +857,7 @@ EOT
 		     sub
 		     {
 			 my $files = $channel->{CVSFiles};
-			 CMD("{ cd $::Log_LocalPath; cvs add $files; cvs commit -m \"[$::Nick] sync\" $files; }&");
+			 CMD("{ cd $::Log_LocalPath; cvs add $::CVSADDOPTIONS $files; cvs commit -m \"[$::Nick] sync\" $files; }&");
 			 $channel->{CVSCommitScheduled} = 0;
 		     }
 		    );
@@ -2359,7 +2359,7 @@ sub ExportActionList($)
 	    $access_cmd = "sleep 5; make URI=$::Log_URI$docname $access; ";
 	}
 
-	CMD("{ pushd $::Log_LocalPath; cvs add $docname; cvs -m \"[$::Nick] create\" commit $docname; popd; $access_cmd }&");
+	CMD("{ pushd $::Log_LocalPath; cvs add $::CVSADDOPTIONS $docname; cvs -m \"[$::Nick] create\" commit $docname; popd; $access_cmd }&");
     }
 
     my $progname = basename(__FILE__);
