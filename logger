@@ -2353,12 +2353,13 @@ sub ExportActionList($)
     }
 
     if ($newlyCreated && $::Do_CVS) {
-	CMD("{ cd $::Log_LocalPath; cvs add $docname; cvs -m \"[$::Nick] create\" commit $docname; }&");
-
+	my $access_cmd = '';
 	if (my $access = $channel->{LogAccess}) {
 	    # sleep 5 for pause to let cvs complete
-	    CMD("{ sleep 5; make URI=$::Log_URI$docname $access; }&");
+	    $access_cmd = "sleep 5; make URI=$::Log_URI$docname $access; ";
 	}
+
+	CMD("{ pushd $::Log_LocalPath; cvs add $docname; cvs -m \"[$::Nick] create\" commit $docname; popd; $access_cmd }&");
     }
 
     my $progname = basename(__FILE__);
