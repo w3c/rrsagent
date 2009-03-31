@@ -1502,7 +1502,7 @@ sub command_for_me ($$$$$$) {
 	      $URIs .= $::Log_URI.$file;
 	  }
 
-	  $access_cmd = "make URI='$URIs' $access";
+	  $access_cmd = "make URI='$URIs' $access; ";
       }
 
       if ($channel->{CVSFiles}) {
