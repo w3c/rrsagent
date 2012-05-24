@@ -1478,12 +1478,11 @@ sub command_for_me ($$$$$$) {
 	    $access = lc($1).'-access';
       } else {
 	  my @names = @::ACLNames;
-	  my $last = pop @names;
 	  Say( $self,
 	       $dest_nick,
 	       "$from_nick, access must be "
                .($#names > 1 ? "one of ".join(', ', @names).', or ' : '')
-	       ."$last",
+	       ."a Community Group ACL name",
 	       $first_person
 	     );
 	  return;
@@ -2441,7 +2440,10 @@ sub CheckACLTemplates()
 	closedir( ACLDIR );
 	@::ACLNames = qw(public);
 	foreach my $template (@templates) {
+	    next if $template =~ m/internal$/;
+	    next if $template =~ m/-public$/;
 	    next if $template =~ m/-script$/;
+	    next if $template =~ m/\.html$/;
 	    next if $template =~ m/^\./;
 	    push @::ACLNames, $template;
 	}
