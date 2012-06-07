@@ -1477,7 +1477,7 @@ sub command_for_me ($$$$$$) {
 	   $access =~ m/^((?:$ACLvalues))-(?:$noiseWords)$/i)) {
 	    $access = lc($1).'-access';
       } else {
-	  my @names = @::ACLNames;
+	  my @names = map { ($_ =~ /-(internal|public)$/) ? () : ($_) } @::ACLNames;
 	  Say( $self,
 	       $dest_nick,
 	       "$from_nick, access must be "
@@ -2440,8 +2440,6 @@ sub CheckACLTemplates()
 	closedir( ACLDIR );
 	@::ACLNames = qw(public);
 	foreach my $template (@templates) {
-	    next if $template =~ m/internal$/;
-	    next if $template =~ m/-public$/;
 	    next if $template =~ m/-script$/;
 	    next if $template =~ m/\.html$/;
 	    next if $template =~ m/^\./;
