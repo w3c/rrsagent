@@ -1477,7 +1477,7 @@ sub command_for_me ($$$$$$) {
 	   $access =~ m/^((?:$ACLvalues))-(?:$noiseWords)$/i)) {
 	    $access = lc($1).'-access';
       } else {
-	  my @names = map { ($_ =~ /-(internal|public)$/) ? () : ($_) } @::ACLNames;
+	  my @names = map { ($_ =~ /(internal|public)$/) ? () : ($_) } @::ACLNames;
 	  Say( $self,
 	       $dest_nick,
 	       "$from_nick, access must be "
