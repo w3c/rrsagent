@@ -174,6 +174,8 @@ $::Admin_LOG=undef;
 # Process ID
 $::PID_File=undef;
 
+my $IRCtrace = 0;		# turn on IRC debug mode
+my $Credentials_filepath = "creds.irc";
 
 ######################################################################
 package URI::irc;
@@ -258,6 +260,7 @@ EOT
 			'html!'	    => \$do_log_types{'html'},
 			'idleparttime=s' => \$ReaperThreshold,
 			'initiallog!' => \$::LogInitial,
+			'irctrace!'  => \$IRCtrace,
 			'log=s'	    => \$::LogName_Pattern,
 			'lroot=s'   => \$::Log_LocalPath,
 			'minutes=s' => \$::MinutesName_Pattern,
@@ -423,11 +426,43 @@ sub Channel_join($) {
 
   my $user_name=substr($channel_name,0,8)."-logger";
 
+  my $irchost = $uri->host;
+  my $ircport = $uri->port;
+  my $ircpwd=undef;
+  my $ssl=0;
+
+  {
+    open CRED, "< $Credentials_filepath"
+	or do {
+	    warn "no IRC credentials found\n";
+	    last;
+        };
+    while (<CRED>) {
+	chomp;
+	s/#.*$//;		# trim comments
+	next if length == 0;
+	(my $host, my $port, my $user, my $pwd, my $dossl) = split(':');
+	if ($host eq $irchost) {
+	    $irchost = $host;
+	    $ircport = $port;
+	    $user_name = $user;
+	    $ircpwd = $pwd;
+	    $ssl = $dossl;
+	    last;
+	}
+    }
+    close CRED;
+  }
+
+  print "user:$user_name, host:$irchost, port:$ircport\n" if $IRCtrace;
+
   my $conn = $::IRC->newconn(Nick    => $::Nick,
-			     Server  => $uri->host,
-			     Port    => $uri->port,
+			     Server  => $irchost,
+			     Port    => $ircport,
 			     Ircname => $::IRC_Name,
 			     Username => $user_name,
+			     Password => $ircpwd,
+			     SSL      => $ssl,
 			     LocalAddr => $::Host);
 
   die "$::program: Cannot create connection to $uri\n" 
@@ -436,6 +471,8 @@ sub Channel_join($) {
   $self->{CONN}=$conn;
   
   Channel_open_logs($self) if $::LogInitial;
+
+  $conn->debug(1) if $IRCtrace;
 
   # Install handlers
   # On 'end of MOTD' event, join ilrt channel
@@ -944,6 +981,7 @@ sub on_disconnect {
 
   log_admin_event($self, $event, time, "Attempting to reconnect");
   unlink $::PID_File;
+  print $m, "\n" if $IRCtrace;
   exit(0);
 }
 
