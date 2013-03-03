@@ -325,7 +325,13 @@ EOT
   Channel_join($channel);
 
   # Never returns
+  print strftime( '%Y-%m-%dT%H:%M:%SZ ', gmtime ),
+    "entering IRC loop\n" if $IRCtrace;
+
   $::IRC->start;
+
+  print strftime( '%Y-%m-%dT%H:%M:%SZ ', gmtime ),
+    "IRC loop quit\n" if $IRCtrace;
 }
 
 
@@ -454,7 +460,8 @@ sub Channel_join($) {
     close CRED;
   }
 
-  print "user:$user_name, host:$irchost, port:$ircport\n" if $IRCtrace;
+  print strftime( '%Y-%m-%dT%H:%M:%SZ ', gmtime ), 
+    "user:$user_name, host:$irchost, port:$ircport\n" if $IRCtrace;
 
   my $conn = $::IRC->newconn(Nick    => $::Nick,
 			     Server  => $irchost,
@@ -463,10 +470,14 @@ sub Channel_join($) {
 			     Username => $user_name,
 			     Password => $ircpwd,
 			     SSL      => $ssl,
-			     LocalAddr => $::Host);
+#			     LocalAddr => $::Host
+      );
 
   die "$::program: Cannot create connection to $uri\n" 
     unless $conn;
+
+  print strftime( '%Y-%m-%dT%H:%M:%SZ ', gmtime ),
+    "Connected to server\n" if $IRCtrace;
 
   $self->{CONN}=$conn;
   
@@ -477,6 +488,7 @@ sub Channel_join($) {
   # Install handlers
   # On 'end of MOTD' event, join ilrt channel
   $conn->add_global_handler(376, \&on_connect);
+  $conn->add_global_handler(422, \&on_connect);
   $conn->add_global_handler(353, \&on_names);
   $conn->add_global_handler('disconnect', \&on_disconnect);
 
@@ -500,6 +512,8 @@ sub Channel_join($) {
   # Not required for Net::IRC 0.71 or later
   BEGIN { $SIG{'__WARN__'} = sub { warn $_[0] if not $_[0] =~ m/^ONE:/ } }
 
+  print strftime( '%Y-%m-%dT%H:%M:%SZ ', gmtime ),
+    "Handlers installed\n" if $IRCtrace;
 }
 
 sub Channel_by_conn($) {
@@ -934,6 +948,9 @@ sub on_connect {
   my $channel_name = $channel->{NAME};
 
   log_admin_event($self, $event, time, "Connected to server");
+
+  print strftime( '%Y-%m-%dT%H:%M:%SZ ', gmtime ), 
+    "on_connect joining $channel_name\n" if $IRCtrace;
 
   $self->join($channel_name);
 }
