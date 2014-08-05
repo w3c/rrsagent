@@ -350,6 +350,7 @@ exit(0);
 				# {LogURIPrefix}, {CVSFiles}, {LogTypes}
 				# {CVSCommitScheduled}, {LogsOpen}, {LogAccess}
 				# {ActionItems} {IgnoreActions}
+				# {departWhenIdle} - boolean for ReapIdleChannels
 				# {LogName} - unused as of 2002-02-18 but
 				# 	      kept for possible future use
 				# {ActionLog}
@@ -394,6 +395,9 @@ sub Channel_new ($) {
   # Track midnight rollover
   $self->{hour}= undef;
   $self->{ignoreRollover} = undef;
+
+  # Reap when idle
+  $self->{departWhenIdle} = 1;
 
   # NET::IRC connection object
   $self->{CONN}=undef;
@@ -1661,6 +1665,21 @@ sub command_for_me ($$$$$$) {
       return;
   }
 
+  # [please] don't leave|depart
+  # [please] stay
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:don't\s+|do\s+not\s+)(?:leave|depart)\s*$/i ||
+      $command =~ m/^(?:please\s+|pls\s+|)stay\s*$/i) {
+
+      $channel->{departWhenIdle} = 0;
+
+      Say( $self,
+	   $dest_nick,
+	   "ok, $from_nick; I will stay here even if the channel goes idle"
+	 );
+
+      return;
+  }
+
   # version
   if($command =~ /^version\?\s*$/i) {
       Say( $self, $dest_nick, '$Revision$ of $Date$' );
@@ -2296,7 +2315,7 @@ sub ReapIdleChannels($)
     for (my $index=0; $index <= $#::Channels; $index++) {
 	# have to use indexed-for since we intend to modify the array
 	my $channel = $::Channels[$index];
-	if ($channel && $channel != $AdminChannel) {
+	if ($channel && ($channel != $AdminChannel) && $channel->{departWhenIdle}) {
 	    # if nothing interesting has been heard from the channel in 2 hours
 	    if ((time - $channel->{MsgTime}) > $ReaperThreshold) {
 		log_admin_event($conn, undef, time, "$::Nick auto-departing $channel->{NAME}");
