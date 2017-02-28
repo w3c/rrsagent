@@ -1589,8 +1589,9 @@ sub command_for_me ($$$$$$) {
   }
 
   # [please] create|draft|format|generate|make|publish minutes
-  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|draft|format|generate|make|publish)\s+(?:the\s+|these\s+|this\s+|)(minutes|seconds|hours)\s*$/i) {
+  if ($command =~ m/^(?:please\s+|pls\s+|)(?:create|draft|format|generate|make|publish)\s+(?:the\s+|these\s+|this\s+|)(minutes|seconds|hours)\s*(v2|)$/i) {
       my $which = $1;
+      my $version2 = $2;
 
       unless ($::Do_CVS && $::MinutesName_Pattern) {
 	  Say( $self,
@@ -1638,7 +1639,11 @@ sub command_for_me ($$$$$$) {
       my $options = $channel->{ScribeOptions} || '';
       $options = "OPTIONS=\"$options\"" if $options;
 
-      CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options minutes; $access }&");
+      if ($version2 =~ m/^v2$/) {
+	  CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options v2minutes; $access }&");
+      } else {
+	  CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options minutes; $access }&");
+      }
       Say( $self,
 	   $dest_nick,
 	   $msg
