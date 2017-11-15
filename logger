@@ -175,7 +175,7 @@ $::Admin_LOG=undef;
 $::PID_File=undef;
 
 # Default for new channels
-$::IgnoreMidnightRollover=undef;
+$::IgnoreMidnightRollover=0;
 
 my $IRCtrace = 0;		# turn on IRC debug mode
 my $Credentials_filepath = "creds.irc";
