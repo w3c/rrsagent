@@ -1568,9 +1568,7 @@ sub command_for_me ($$$$$$) {
 	  my @names = map { ($_ =~ /[_-](internal|public)$/) ? () : ($_) } @::ACLNames;
 	  Say( $self,
 	       $dest_nick,
-	       "$from_nick, access must be "
-               .($#names > 1 ? "one of ".join(', ', @names).', or ' : '')
-	       ."a Community Group ACL name",
+	       "$from_nick, I do not recognize that access token",
 	       $first_person
 	     );
 	  return;
