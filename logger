@@ -258,6 +258,7 @@ EOT
 			'action!'   => \$::LogActionMsgs,
 			'admin=s'   => \$::AdminDir,
 			'alog=s'    => \$::ActionLogName_Pattern,
+			'commitInterval=i' => \$::CVSCommitInterval,
 			'cvs!'      => \$::Do_CVS,
 			'helpuri=s' => \$::HelpURI,
 			'html!'	    => \$do_log_types{'html'},
