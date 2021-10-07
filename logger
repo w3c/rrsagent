@@ -1669,7 +1669,7 @@ sub command_for_me ($$$$$$) {
 
       if ($version =~ m/^v1$/) {
 	  CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options minutes; $access }&");
-      } elsif ($version =~ m/^v-slide$/ {
+      } elsif ($version =~ m/^v-slide$/) {
 	  CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options slideminutes; $access }&");
       } else {
 	  CMD("{ make DOCIN=$input DOCOUT=$docname DIR=$logdir $options v2minutes; $access }&");
