@@ -2,8 +2,7 @@
 #
 # IRC RDF Chat Logger
 #
-# $Source: /w3ccvs/WWW/2001/sw/logger/logger,v $
-# $Id: logger,v 1.75.1.111 2021/10/07 11:14:22 swick Exp $
+# Source: https://github.com/w3c/rrsagent
 #
 # (C) Copyright 2000-2001 Dave Beckett, ILRT, University of Bristol
 # http://purl.org/net/dajobe/
@@ -256,8 +255,6 @@ Usage: $::program [option...] password channel-URI
 EOT
 
   my(%do_log_types)=map {$_ => 1} @::DefaultLogTypes;
-
-  print '$Id: logger,v 1.75.1.111 2021/10/07 11:14:22 swick Exp $', "\n";
 
   die $usage unless GetOptions (
 			'action!'   => \$::LogActionMsgs,
@@ -701,8 +698,7 @@ sub Channel_open_logs ($) {
 <head>
  <title>IRC log of $escaped_chan on $date</title>
 EOT
-      my $progID = '$Id: logger,v 1.75.1.111 2021/10/07 11:14:22 swick Exp $';
-      $progID =~ s/\$/\&#36;/g;	# Hide the CVS tag from CVS in the output
+      my $progID = 'https://github.com/w3c/rrsagent';
       print $html_log_fh '<meta name="generator" content="'.$progID.'" />';
       print $html_log_fh <<"EOT";
 
@@ -1719,12 +1715,6 @@ sub command_for_me ($$$$$$) {
       return;
   }
 
-  # version
-  if($command =~ /^version\?\s*$/i) {
-      Say( $self, $dest_nick, '$Revision: 1.75.1.111 $ of $Date: 2021/10/07 11:14:22 $' );
-      return;
-  }
-
   if ($channel) {
       if(!$channel->{Listening}) {
 	$output="I'm not logging. ";
@@ -2474,10 +2464,7 @@ sub ExportActionList($)
 	CMD("{ cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS $docname; $access_cmd }&");
     }
 
-    my $progname = basename(__FILE__);
-    my $CVSRevision = '$Revision: 1.75.1.111 $'; # capture CVS info here
-    $CVSRevision =~ s/\$//g;	# drop '$' for W3C site repository checkin
-
+    my $progname = 'https://github.com/w3c/rrsagent';
     my $datetime = strftime( '%Y-%m-%dT%H:%MZ', gmtime );
     my $mtgRecord = xml_escape($channel->{LogURIPrefix} || $::Log_URI);
 
@@ -2491,7 +2478,7 @@ sub ExportActionList($)
 <rdf:Description rdf:about="">
   <dc:date>$datetime</dc:date>
   <dc:title>Action Items from $mtgRecord</dc:title>
-  <dc:creator>$::Nick $progname $CVSRevision</dc:creator>
+  <dc:creator>$::Nick $progname</dc:creator>
 </rdf:Description>
 
 <rdf:Description rdf:about="$mtgRecord">
