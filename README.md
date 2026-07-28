@@ -1,15 +1,12 @@
----
-title: RRSAgent IRC Bot
-toc: yes
----
+# RRSAgent IRC Bot
 
-## General Description {#general}
+## Description
 
 RRSAgent is a helpful bot for recording an IRC session. All text sent to the channel by any user is logged except '`/me`' text and text sent with [logging explicitly turned off](#logoff).
 
 In the command descriptions below, optional words in commands are indicated in square brackets. RRSAgent's commands are not case sensitive, but, in general, must be grammatically correct. "`please`" can be abbreviated to "`pls`" if you wish to be polite yet still save keystrokes.
 
-## Inviting and Dismissing RRSAgent {#inviting}
+## Inviting and dismissing RRSAgent
 
 To use RRSAgent, you must first invite it to your IRC session. When you're finished, you must dismiss RRSAgent from the channel.
 
@@ -36,11 +33,11 @@ Each of the following disables automatic departure from the channel:
 
 Once automatic departure is disabled, the only way to re-enable it is to manually dismiss RRSAgent from the channel and then re-invite it.
 
-## Talking to RRSAgent {#talking}
+## Talking to RRSAgent
 
 RRSAgent also recognizes several commands during its logging session. Most commands begin with '`rrsagent, `', though a few are recognized without this.
 
-### Action Item Tracking {#actions}
+### Action item tracking
 
 RRSAgent will help track action items recorded while a meeting is in progress. Many of the commands in this set need not be directly addressed to RRSAgent; they will be recognized when not addressed to anyone in particular and also when received as third person ('`/me`') messages.
 
@@ -81,7 +78,7 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   Requests that RRSAgent begin tracking action items. This request must be addressed specifically to RRSAgent. This is the default state when RRSAgent is invited to a channel.
 
-### Searching the Log {#search}
+### Searching the log
 
 - `rrsagent, bookmark`
 - `rrsagent, pointer`
@@ -97,7 +94,7 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   Searches the log for `<text>`. The text is interpreted as a perl regex; e.g., '`.`' matches any character, '`<char>+`' matches one or more consecutive occurrences of `<char>`, and '`<char>*`' matches any number of consecutive occurrences of `<char>`, etc. '`-i`' causes the comparison to be case insensitive. '`first`', '`last`', and '`max`' limit the reported results to the specified (first and last) results or to at most (max) results.
 
-### Pausing and Resuming Log Recording {#logoff}
+### Pausing and resuming log recording
 
 - `rrsagent, silence`
 - `rrsagent, stop`
@@ -127,14 +124,14 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   This restores the default behavior of RRSAgent when logging to a channel and midnight UTC is crossed. When RRSAgent joins a channel within 75 minutes of midnight UTC, the current log will continue past midnight unless this request has been issued.
 
-### Setting Log Access {#access}
+### Setting log access
 
 - `rrsagent, [please] set [these] logs member-visible|world-visible|ab-visible|team-visible`
 - `rrsagent, [please] make [these] logs member-visible|world-visible|team-visible|ab-visible`
 
   Sets the access control on the logs, recorded action items, and draft minutes (if any). The group '`world`' may also be written as '`public`'. The suffix '`-visible`' may also be written as '`-access`', '`-conf`', '`-confidential`', '`-only`', '`-read`', or '`-readable`', or may be omitted entirely. '`record`' is recognized as a synonym for '`log`'.
 
-### Formatting Minutes {#formatMinutes}
+### Formatting minutes
 
 - `rrsagent, [please] create [the] minutes`
 - `rrsagent, [please] draft [the] minutes`
@@ -173,13 +170,13 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   - `rrsagent, [please] create [the] minutes v1`
 
-### Help {#help}
+### Help
 
 - `rrsagent, [please] help`
 
   Displays an abbreviated list of commands. Due to "flood control" in IRC, this may be slow.
 
-## Related Tools {#related}
+## Related tools
 
 - [scribe.perl](https://w3c.github.io/scribe2/scribedoc.html) by Bert Bos (after version 1 created by David Booth) generates nicely formatted HTML from irc logs, well-tuned for the logs produced by RRSAgent. This is the tool invoked by '[`please draft the minutes`](#formatMinutes)'.
 
@@ -187,7 +184,7 @@ The list of action items may be reviewed and modified during the meeting. Action
 
 - [Meeting minutes browser](https://www.w3.org/services/meeting-minutes/) provides HTML and JSON summaries of meeting minutes published on W3C's site.
 
-## Change History {#changes}
+## Change history
 
 ### 2022-10
 
@@ -205,6 +202,6 @@ New (v2) minutes style supported.
 
 '`Please stay`' supported.
 
-## Acknowledgements {#acknowledgements}
+## Acknowledgements
 
 The RRSAgent IRC bot was written by Dave Beckett then of ILRT Bristol (Dave calls it 'logger') and Ralph Swick of W3C. The name comes from earlier variants on the same theme by Ralph. David Booth of Hewlett-Packard wrote the v1 log reformatting script that generates formatted draft minutes. Bert Bos of W3C rewrote the formatting script and added more features; that is version 2.
