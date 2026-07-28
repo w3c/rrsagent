@@ -2,8 +2,8 @@
 #
 # IRC RDF Chat Logger
 #
-# $Source$
-# $Id$
+# $Source: /w3ccvs/WWW/2001/sw/logger/logger,v $
+# $Id: logger,v 1.75.1.111 2021/10/07 11:14:22 swick Exp $
 #
 # (C) Copyright 2000-2001 Dave Beckett, ILRT, University of Bristol
 # http://purl.org/net/dajobe/
@@ -47,7 +47,7 @@ use Net::IRC;
 
 
 %ENV=();
-$ENV{PATH}='/bin:/usr/bin:/usr/local/bin';
+$ENV{PATH}='/home/ircbot/rrsagent/bin:/bin:/usr/bin:/usr/local/bin';
 
 my $AdminChannel;		# channel for administrative messages
 $::LogInitial = 1;		# log the initial channel
@@ -76,7 +76,7 @@ $::HelpURI = undef;		# URI for detailed help
 
 $::LastACLModTime = 0;		# Directory mod time
 # local directory for ACL ('make record XX-access') templates
-$::ACLTemplateDir = "/www.w3.org/2008/07/acl_uris/";
+$::ACLTemplateDir = "/home/ircbot/rrsagent/WWW/2008/07/acl_uris/";
 # List of permissible ACL names
 @::ACLNames = qw(public);
 
@@ -215,8 +215,13 @@ sub CMD ($) {
 	print "$cmd_string\n";
     }
     else {
-	print strftime( '%Y-%m-%dT%H:%M:%SZ', gmtime ), "\n";
-	system( ($cmd_string) );
+	local $| = 1; # hack to get the following lines to be logged in order
+	print strftime( '%Y-%m-%d %H:%M:%SZ', gmtime ), " CMD $cmd_string\n";
+	open( my $cmd, "-|", $cmd_string ) or die "error open cmd $cmd_string";
+	while (<$cmd>) {
+	    print;
+	}
+	close $cmd;
     }
 }	
 
@@ -252,7 +257,7 @@ EOT
 
   my(%do_log_types)=map {$_ => 1} @::DefaultLogTypes;
 
-  print '$Id$', "\n";
+  print '$Id: logger,v 1.75.1.111 2021/10/07 11:14:22 swick Exp $', "\n";
 
   die $usage unless GetOptions (
 			'action!'   => \$::LogActionMsgs,
@@ -696,7 +701,7 @@ sub Channel_open_logs ($) {
 <head>
  <title>IRC log of $escaped_chan on $date</title>
 EOT
-      my $progID = '$Id$';
+      my $progID = '$Id: logger,v 1.75.1.111 2021/10/07 11:14:22 swick Exp $';
       $progID =~ s/\$/\&#36;/g;	# Hide the CVS tag from CVS in the output
       print $html_log_fh '<meta name="generator" content="'.$progID.'" />';
       print $html_log_fh <<"EOT";
@@ -792,7 +797,7 @@ EOT
 	  $access_cmd = "sleep 5; make URI='$URIs' $access; ";
       }
 
-      CMD("{ pushd $::Log_LocalPath; cvs add $::CVSADDOPTIONS $cvs_files; cvs commit -m \"[$::Nick] create\" $cvs_files; popd; $access_cmd }&");
+      CMD("{ cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS $cvs_files; $access_cmd }&");
   }
 }
 
@@ -807,7 +812,7 @@ sub Channel_close_logs ($) {
   $self->{LogsOpen} = 0;
 
   if ($::Do_CVS && $self->{CVSFiles}) {
-    CMD("{ cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$self->{CVSFiles}."; }&");
+    CMD("cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS ".$self->{CVSFiles}." &");
   };
 }
 
@@ -915,8 +920,7 @@ EOT
     $self->schedule( $::CVSCommitInterval,
 		     sub
 		     {
-			 my $files = $channel->{CVSFiles};
-			 CMD("{ cd $::Log_LocalPath; cvs add $::CVSADDOPTIONS $files; cvs commit -m \"[$::Nick] sync\" $files; }&");
+			 CMD("cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS ".$channel->{CVSFiles}." &");
 			 $channel->{CVSCommitScheduled} = 0;
 		     }
 		    );
@@ -937,9 +941,9 @@ sub log_admin_event ($$$;$) {
 
   my $txt_msg=$nick ? qq{<$nick> $msg} : $msg;
   if($::Admin_LOG) {
-    print $::Admin_LOG "${date}Z${time} $txt_msg\n";
+    print $::Admin_LOG "${date} ${time} $txt_msg\n";
   } else {
-    warn "${date}Z${time} $txt_msg\n";
+    warn "${date} ${time} $txt_msg\n";
   }
 }
 
@@ -1593,7 +1597,7 @@ sub command_for_me ($$$$$$) {
 
       if ($channel->{CVSFiles}) {
 	  # make sure these exist in Web space
-	  CMD("{ pushd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}."; popd; $access_cmd }&");
+	  CMD("{ cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS ".$channel->{CVSFiles}."; $access_cmd }&");
       } else {
 	  Say( $self,
 	       $dest_nick,
@@ -1637,7 +1641,7 @@ sub command_for_me ($$$$$$) {
 
       if ($channel->{CVSFiles}) {
 	  # make sure these exist in Web space
-	  CMD("{ cd $::Log_LocalPath; cvs commit -m \"[$::Nick] sync\" ".$channel->{CVSFiles}."; }&");
+	  CMD("cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS ".$channel->{CVSFiles}." &");
       } else {
 	  Say( $self,
 	       $dest_nick,
@@ -1717,7 +1721,7 @@ sub command_for_me ($$$$$$) {
 
   # version
   if($command =~ /^version\?\s*$/i) {
-      Say( $self, $dest_nick, '$Revision$ of $Date$' );
+      Say( $self, $dest_nick, '$Revision: 1.75.1.111 $ of $Date: 2021/10/07 11:14:22 $' );
       return;
   }
 
@@ -2467,11 +2471,11 @@ sub ExportActionList($)
 	    $access_cmd = "sleep 5; make URI=$::Log_URI$docname $access; ";
 	}
 
-	CMD("{ pushd $::Log_LocalPath; cvs add $::CVSADDOPTIONS $docname; cvs -m \"[$::Nick] create\" commit $docname; popd; $access_cmd }&");
+	CMD("{ cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS $docname; $access_cmd }&");
     }
 
     my $progname = basename(__FILE__);
-    my $CVSRevision = '$Revision$'; # capture CVS info here
+    my $CVSRevision = '$Revision: 1.75.1.111 $'; # capture CVS info here
     $CVSRevision =~ s/\$//g;	# drop '$' for W3C site repository checkin
 
     my $datetime = strftime( '%Y-%m-%dT%H:%MZ', gmtime );
