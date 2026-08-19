@@ -1041,7 +1041,7 @@ sub on_invite {
 
   unless (valid_channel_name($channel_name)) {
     log_admin_event($self, $event, time, "Refused invite to $channel_name - invalid channel name");
-    Say($self, $nick, "I am not allowed to join that channel");
+    Say($self, $nick, "I am not allowed to join $channel_name due to the special characters used in the channel name");
     return;
   }
 
@@ -1489,7 +1489,7 @@ sub command_for_me ($$$$$$) {
 
       unless (valid_channel_name($channel_name)) {
 	  log_admin_event($self, $event, time, "Refused join request for $channel_name from $from_nick - invalid channel name");
-	  Say( $self, $dest_nick, "I am not allowed to join that channel", $first_person );
+	  Say( $self, $dest_nick, "I am not allowed to join $channel_name due to the special characters used in the channel name", $first_person );
 	  return 1;
       }
 
