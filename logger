@@ -790,7 +790,7 @@ EOT
 	  for my $file (split(' ', $cvs_files)) {
 	      $URIs .= $::Log_URI.$file.' ';
 	  }
-	  $access_cmd = "sleep 5; make URI='$URIs' $access; ";
+	  $access_cmd = "sleep 1; make URI='$URIs' $access; ";
       }
 
       CMD("{ cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS $cvs_files; $access_cmd }&");
@@ -1662,7 +1662,7 @@ sub command_for_me ($$$$$$) {
       log_event($self, $event, time, $msg, $self->nick);
 
       my $access = $channel->{LogAccess} || '';
-      $access = "sleep 5; make URI=$::Log_URI$docname $access;" if $access;
+      $access = "sleep 1; make URI=$::Log_URI$docname $access;" if $access;
 
       my $options = $channel->{ScribeOptions} || '';
       $options = "OPTIONS=\"$options\"" if $options;
@@ -2453,8 +2453,8 @@ sub ExportActionList($)
     if ($newlyCreated && $::Do_CVS) {
 	my $access_cmd = '';
 	if (my $access = $channel->{LogAccess}) {
-	    # sleep 5 for pause to let cvs complete
-	    $access_cmd = "sleep 5; make URI=$::Log_URI$docname $access; ";
+	    # sleep 1 for pause to let cvs complete
+	    $access_cmd = "sleep 1; make URI=$::Log_URI$docname $access; ";
 	}
 
 	CMD("{ cvs-commit -p $::Log_LocalPath $::CVSADDOPTIONS $docname; $access_cmd }&");
