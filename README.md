@@ -78,7 +78,7 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   Requests that RRSAgent begin tracking action items. This request must be addressed specifically to RRSAgent. This is the default state when RRSAgent is invited to a channel.
 
-### Searching the log
+### Linking to the current place in the log
 
 - `rrsagent, bookmark`
 - `rrsagent, pointer`
@@ -174,6 +174,28 @@ The list of action items may be reviewed and modified during the meeting. Action
 - [Zakim](zakim.md) is a Semantic Web agent ("swagent") that helps facilitate meetings using IRC.
 
 - [Meeting minutes browser](https://www.w3.org/services/meeting-minutes/) provides HTML and JSON summaries of meeting minutes published on W3C's site.
+
+## Updating RRSAgent
+
+RRSAgent's code is maintained on [GitHub](https://github.com/w3c/rrsagent).
+
+The instance running as `RRSAgent` on W3C's IRC server uses several configuration options that differ from the default values in the script. The documentation above describes the bot as deployed on W3C's server.
+
+Differences between W3C's RRSAgent service and the defaults in this script include:
+
+| Option | W3C's server | Default |
+| --- | --- | --- |
+| Bot's nickname | `RRSAgent` | `logger` |
+| '`/me`' (action) messages | Not logged | Logged |
+| Log formats written | `.html`, `.rdf`, and `.txt` | `.rdf` and `.txt`  |
+| Log location | Published under `https://www.w3.org/yyyy/mm/dd-<channel>-*` | Written as `<channel>/yyyy-mm-dd.*` relative to the working directory, with no public URI |
+| Auto-departure from an idle channel | After 2 hours | Never |
+| "[draft the minutes](#formatting-minutes)" commands | Enabled | Disabled - replies "I am not running that function here" |
+| Committing logs/minutes to CVS | Enabled | Disabled |
+
+Run `logger` with no arguments to see the full list of command-line options and their default values.
+
+To deploy any changes to W3C's supported `RRSAgent` service please contact the W3C systems team.
 
 ## Change history
 
