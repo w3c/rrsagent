@@ -1039,6 +1039,12 @@ sub on_invite {
   my $channel_password = $args[1]; # maybe
   log_admin_event($self, $event, time, "Invited to $channel_name ($arg)");
 
+  unless (valid_channel_name($channel_name)) {
+    log_admin_event($self, $event, time, "Refused invite to $channel_name - invalid channel name");
+    Say($self, $nick, "I am not allowed to join that channel");
+    return;
+  }
+
   $self->join($channel_name, $channel_password);
 }
 
@@ -1480,6 +1486,13 @@ sub command_for_me ($$$$$$) {
       my $channel_name = $1;
       my $channel_key = $2;
       print "join $channel_name $channel_key from $from_nick\n";
+
+      unless (valid_channel_name($channel_name)) {
+	  log_admin_event($self, $event, time, "Refused join request for $channel_name from $from_nick - invalid channel name");
+	  Say( $self, $dest_nick, "I am not allowed to join that channel", $first_person );
+	  return 1;
+      }
+
       log_admin_event($self, $event, time, "Join request for $channel_name from $from_nick");
       $self->join($channel_name, $channel_key);
       return 1;
@@ -1810,6 +1823,15 @@ sub URI2link ($@)
     }
 
     return $l;
+}
+
+
+# Channel names are used to build filenames and shell commands (for CVS
+# commits etc.), so restrict them to a safe character set rather than
+# just what IRC itself allows. Does not apply to channel keys/passwords.
+sub valid_channel_name ($) {
+  my ($channel_name) = @_;
+  return $channel_name =~ /^[#&][A-Za-z0-9_-]+$/;
 }
 
 
