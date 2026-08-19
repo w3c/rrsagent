@@ -166,9 +166,7 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   Refer to the scribe [Quick Start Guide](https://w3c.github.io/scribe2/scribedoc.html) for additional details. See also [Making minutes without RRSAgent](https://w3c.github.io/scribe2/rescue) for suggestions on what to do if you wish to generate minutes when RRSAgent was not logging the channel.
 
-  An [older version of the script](https://w3c.github.io/scribe/scribedoc.htm) can also be invoked by adding '`v1`' to the formatting request; as below:
-
-  - `rrsagent, [please] create [the] minutes v1`
+  In the past an [older version of the script](https://w3c.github.io/scribe/scribedoc.htm) could be invoked by adding '`v1`' to the formatting request, but this is no longer supported as of August 2026.
 
 ### Help
 
@@ -185,6 +183,10 @@ The list of action items may be reviewed and modified during the meeting. Action
 - [Meeting minutes browser](https://www.w3.org/services/meeting-minutes/) provides HTML and JSON summaries of meeting minutes published on W3C's site.
 
 ## Change history
+
+### 2026-08
+
+Minutes style v1 is no longer supported.
 
 ### 2022-10
 
