@@ -2,7 +2,7 @@
 
 ## Description
 
-RRSAgent is a helpful bot for recording an IRC session. All text sent to the channel by any user is logged except '`/me`' text and text sent with [logging explicitly turned off](#logoff).
+RRSAgent is a helpful bot for recording an IRC session. All text sent to the channel by any user is logged except '`/me`' text and text sent with [logging explicitly turned off](#pausing-and-resuming-log-recording).
 
 In the command descriptions below, optional words in commands are indicated in square brackets. RRSAgent's commands are not case sensitive, but, in general, must be grammatically correct. "`please`" can be abbreviated to "`pls`" if you wish to be polite yet still save keystrokes.
 
@@ -169,7 +169,7 @@ The list of action items may be reviewed and modified during the meeting. Action
 
 ## Related tools
 
-- [scribe.perl](https://w3c.github.io/scribe2/scribedoc.html) by Bert Bos (after version 1 created by David Booth) generates nicely formatted HTML from irc logs, well-tuned for the logs produced by RRSAgent. This is the tool invoked by '[`please draft the minutes`](#formatMinutes)'.
+- [scribe.perl](https://w3c.github.io/scribe2/scribedoc.html) by Bert Bos (after version 1 created by David Booth) generates nicely formatted HTML from irc logs, well-tuned for the logs produced by RRSAgent. This is the tool invoked by '[`please draft the minutes`](#formatting-minutes)'.
 
 - [Zakim](zakim.md) is a Semantic Web agent ("swagent") that helps facilitate meetings using IRC.
 
@@ -183,7 +183,7 @@ Minutes style v1 is no longer supported.
 
 ### 2022-10
 
-Include scribe.perl in [Related Tools](#related), add mention of [Making minutes without RRSAgent](https://w3c.github.io/scribe2/rescue).
+Include scribe.perl in [Related Tools](#related-tools), add mention of [Making minutes without RRSAgent](https://w3c.github.io/scribe2/rescue).
 
 ### 2021-01
 

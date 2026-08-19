@@ -1699,7 +1699,6 @@ sub command_for_me ($$$$$$) {
     }
     @help=(@help,
       "any lines starting [off].   All commands to me are logged.",
-      "My public output is logged but these lines are not searchable.",
       "The log is in ".($self->{LogURIPrefix} ? $self->{LogURIPrefix} : $::Log_URI),
       "Do $::Nick, adminhelp for help on administrative commands",
     );
@@ -1713,10 +1712,15 @@ sub command_for_me ($$$$$$) {
   if($command =~ /^adminhelp/i) {
     my(@help)=(
       "Administrative commands are as follows:",
-      "  quit        - I will depart",
-      "  restart     - I will leave and rejoin channel",
-      "  debug       - Turn on debugging",
-      "  nodebug     - Turn off debugging",
+      "  quit                    - I will depart",
+      "  restart                 - I will leave and rejoin channel",
+      "  debug                   - Turn on debugging",
+      "  nodebug                 - Turn off debugging",
+      "  announce <text>         - Say <text> aloud on all channels I'm on",
+      "  remark|whisper <text>   - Say <text> quietly (as an action) on all channels I'm on",
+      "  are you busy?           - Report which channels I'm on and how idle they are",
+      "  meetings span midnight  - Don't start new logs at midnight, for all channels I join from now on",
+      "  start new logs [at midnight] - Restore normal midnight log rollover for channels I join from now on",
       "These commands work only with the admin PASSWORD like this:",
       "/msg $::Nick password PASSWORD command'",
     );
