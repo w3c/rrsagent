@@ -552,58 +552,6 @@ sub Channel_get_log_dir ($) {
 }
 
 
-sub Channel_get_log_lines ($) {
-  my $self=shift;
-
-  my(@file_dates);
-
-  if (my $log_name=$self->{LogName}) {
-    @file_dates=["$log_name.txt", undef];
-  } else {
-    my $log_dir=Channel_get_log_dir($self);
-
-    return () if !opendir(DIR, $log_dir);
-
-    my $name = $self->{NAME};
-    $name =~ s/^[#&]//;
-
-    for my $file (reverse sort readdir(DIR)) {
-      next unless $file =~ /.*$name.*\.txt/;
-#     $file =~ m/^(\d\d\d\d-\d\d-\d\d)/;
-      # %%% need to generalize this date-extraction from $::LogName_Pattern
-      $file =~ m/^([-\d]*)/;	# any number of leading hyphen-separated digits
-      my $date=$1;
-      $date =~ s/-$//;		# trim a trailing hyphen if one exists
-      push(@file_dates, ["$log_dir/$file", $date]);
-    }
-    closedir(DIR);
-  }
-
-  # In date order, newest lines at top
-  my(@results)=();
-  # Newest files first
-  for my $file_date (@file_dates) {
-    my($file,$date)=@$file_date;
-    open(LOG, $file) or next;
-    
-    # Append to list, reverse date sorted list - i.e. older entries at end 
-    my(@lines);
-    while(<LOG>) {
-      chomp;
-      # Ignore logger's own output
-      next if m%^\d\d:\d\d:\d\d <$::Nick>%;
-      next if !length $_;
-      $_="$date $_" if $date;
-      push(@lines, $_);
-    };
-    close(LOG);
-    push(@results, reverse @lines);
-  }
-
-  return(@results);
-}
-
-
 sub Channel_open_logs ($) {
   my $self=shift;
 
@@ -2004,13 +1952,6 @@ sub do_announce
     for my $channel (@::Channels) {
 	Say( $conn, $channel->{NAME}, $message, $first_person );
     }
-}
-
-sub AdminNotice
-{
-    my ($message) = @_;
-    Say( $AdminChannel->{CONN}, $AdminChannel->{NAME}, $message)
-	if $AdminChannel->{Listening};
 }
 
 # on forced disconnect, report what channels had output for debugging
