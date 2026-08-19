@@ -35,7 +35,6 @@ use strict;
 # Standard Perl modules
 use File::Path;
 use File::Basename;
-use Sys::Hostname;
 use Getopt::Long;
 use IO::Handle;
 use POSIX qw(strftime);
@@ -58,8 +57,6 @@ my $ReaperScheduled = 0;	# reap idle channels semaphore
 
 # Global constants
 $::program=basename $0;
-
-$::Host=(hostname || 'unknown');
 
 $::Nick='logger'; # OK this can be changed if clashes
 $::IRC_Name='Chat Logger';
@@ -480,7 +477,6 @@ sub Channel_join($) {
 			     Username => $user_name,
 			     Password => $ircpwd,
 			     SSL      => $ssl,
-#			     LocalAddr => $::Host
       );
 
   die "$::program: Cannot create connection to $uri\n" 
