@@ -87,13 +87,6 @@ The list of action items may be reviewed and modified during the meeting. Action
 
   Returns a URI to the current location in the log.
 
-- `rrsagent, grep [-i] [first-last|max] <text>`
-- `rrsagent, search for [-i] [first-last|max] <text>`
-- `rrsagent, find [-i] [first-last|max] <text>`
-- `rrsagent, <text>?`
-
-  Searches the log for `<text>`. The text is interpreted as a perl regex; e.g., '`.`' matches any character, '`<char>+`' matches one or more consecutive occurrences of `<char>`, and '`<char>*`' matches any number of consecutive occurrences of `<char>`, etc. '`-i`' causes the comparison to be case insensitive. '`first`', '`last`', and '`max`' limit the reported results to the specified (first and last) results or to at most (max) results.
-
 ### Pausing and resuming log recording
 
 - `rrsagent, silence`
